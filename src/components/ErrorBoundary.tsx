@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import { AlertTriangle, RefreshCcw, Home } from "lucide-react"
 import { Button } from "./ui/button"
+import * as Sentry from "@sentry/react"
 
 interface Props {
     children: ReactNode
@@ -24,6 +25,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("Uncaught error:", error, errorInfo)
+        
+        Sentry.captureException(error, {
+            extra: {
+                componentStack: errorInfo.componentStack,
+            },
+        })
     }
 
     private handleReset = () => {

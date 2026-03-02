@@ -1,9 +1,24 @@
-// Research Paper Summarizer using Gemini
-import { GoogleGenAI } from "@google/genai"
+// Research Paper Summarizer — proxied through the secure backend
+import { apiRequest } from '@/lib/api-client'
 
-const genai = new GoogleGenAI({
-  apiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
-})
+// Backend proxy shim — same shape as GoogleGenAI.models.generateContent
+const genai = {
+    models: {
+        async generateContent({
+            contents,
+        }: {
+            contents: string;
+            model?: string;
+        }): Promise<{ text: string }> {
+            const result = await apiRequest<{ text: string }>('/ai/prompt', {
+                method: 'POST',
+                body: { prompt: contents },
+                timeout: 120_000,
+            });
+            return { text: result.text || '' };
+        },
+    },
+};
 
 export interface PaperSummary {
   title: string

@@ -1,102 +1,282 @@
-// Service Worker for Offline Support and Caching
-// Handles static asset caching and background sync for research data
+// ============================================================================
+// GapMiner Service Worker
+// Enhanced PWA with offline support, caching, and background sync
+// ============================================================================
 
-const CACHE_NAME = 'gapminer-cache-v1';
+/// <reference lib="webworker" />
+
+declare const self: ServiceWorkerGlobalScope;
+
+const CACHE_NAME = 'gapminer-v1';
+const STATIC_CACHE = 'gapminer-static-v1';
+const DYNAMIC_CACHE = 'gapminer-dynamic-v1';
 const OFFLINE_URL = '/offline.html';
 
-const ASSETS_TO_CACHE = [
+const STATIC_ASSETS = [
     '/',
     '/index.html',
     '/offline.html',
-    '/src/main.tsx',
-    '/src/App.tsx',
-    '/src/index.css',
     '/favicon.ico',
 ];
 
-const sw = (self as unknown) as any;
+// ============================================================================
+// Install Event - Cache static assets
+// ============================================================================
 
-// Install event: Cache core assets
-sw.addEventListener('install', (event: any) => {
+self.addEventListener('install', (event: ExtendableEvent) => {
+    console.log('[SW] Installing...');
+    
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            console.log('[ServiceWorker] Caching core assets');
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
+        Promise.all([
+            // Cache static assets
+            caches.open(STATIC_CACHE).then((cache) => {
+                console.log('[SW] Caching static assets');
+                return cache.addAll(STATIC_ASSETS);
+            }),
+            // Skip waiting to activate immediately
+            self.skipWaiting()
+        ])
     );
-    sw.skipWaiting();
 });
 
-// Activate event: Clean up old caches
-sw.addEventListener('activate', (event: any) => {
+// ============================================================================
+// Activate Event - Clean up old caches
+// ============================================================================
+
+self.addEventListener('activate', (event: ExtendableEvent) => {
+    console.log('[SW] Activating...');
+    
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheName !== CACHE_NAME) {
-                        console.log('[ServiceWorker] Removing old cache', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
+                cacheNames
+                    .filter((name) => name !== STATIC_CACHE && name !== DYNAMIC_CACHE)
+                    .map((name) => {
+                        console.log('[SW] Deleting old cache:', name);
+                        return caches.delete(name);
+                    })
             );
+        }).then(() => {
+            return self.clients.claim();
         })
     );
-    sw.clients.claim();
 });
 
-// Fetch event: Network-first falling back to cache
-sw.addEventListener('fetch', (event: any) => {
-    if (event.request.mode === 'navigate') {
+// ============================================================================
+// Fetch Event - Network-first with cache fallback
+// ============================================================================
+
+self.addEventListener('fetch', (event: FetchEvent) => {
+    const { request } = event;
+    const url = new URL(request.url);
+
+    // Skip non-GET requests
+    if (request.method !== 'GET') {
+        return;
+    }
+
+    // Skip Chrome extensions
+    if (url.protocol === 'chrome-extension:') {
+        return;
+    }
+
+    // For navigation requests (HTML pages), use network-first
+    if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request).catch(() => {
-                return caches.match(OFFLINE_URL);
+            fetch(request)
+                .then((response) => {
+                    // Cache successful responses
+                    const responseClone = response.clone();
+                    caches.open(DYNAMIC_CACHE).then((cache) => {
+                        cache.put(request, responseClone);
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    // Try cache first
+                    return caches.match(request).then((cachedResponse) => {
+                        if (cachedResponse) {
+                            return cachedResponse;
+                        }
+                        // Fallback to offline page
+                        return caches.match(OFFLINE_URL).then((offlineResponse) => {
+                            return offlineResponse || new Response('Offline', { status: 503 });
+                        });
+                    });
+                })
+        );
+        return;
+    }
+
+    // For API requests, use network-first with cache fallback
+    if (url.pathname.startsWith('/api/')) {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
+                    // Cache GET API responses
+                    if (response.ok) {
+                        const responseClone = response.clone();
+                        caches.open(DYNAMIC_CACHE).then((cache) => {
+                            cache.put(request, responseClone);
+                        });
+                    }
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(request).then((cachedResponse) => {
+                        return cachedResponse || new Response('Network error', { status: 503 });
+                    });
+                })
+        );
+        return;
+    }
+
+    // For static assets (JS, CSS, images), use cache-first
+    if (
+        request.destination === 'script' ||
+        request.destination === 'style' ||
+        request.destination === 'image' ||
+        request.destination === 'font'
+    ) {
+        event.respondWith(
+            caches.match(request).then((cachedResponse) => {
+                if (cachedResponse) {
+                    // Return cached response and update cache in background
+                    fetch(request).then((response) => {
+                        if (response.ok) {
+                            caches.open(STATIC_CACHE).then((cache) => {
+                                cache.put(request, response);
+                            });
+                        }
+                    });
+                    return cachedResponse;
+                }
+                
+                // Not in cache, fetch and cache
+                return fetch(request).then((response) => {
+                    if (response.ok) {
+                        const responseClone = response.clone();
+                        caches.open(STATIC_CACHE).then((cache) => {
+                            cache.put(request, responseClone);
+                        });
+                    }
+                    return response;
+                });
+            }).catch(() => {
+                return new Response('Asset not found', { status: 404 });
             })
         );
         return;
     }
 
+    // Default: network-first
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request).then((networkResponse) => {
-                // Cache API responses optionally or static assets
-                if (event.request.url.includes('/assets/')) {
-                    const responseToCache = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
-                    });
-                }
-                return networkResponse;
-            });
-        })
+        fetch(request).catch(() => 
+            caches.match(request).then((cachedResponse) => {
+                return cachedResponse || new Response('Not found', { status: 404 });
+            })
+        )
     );
 });
 
-// Background Sync: For comments or analysis queued while offline
-sw.addEventListener('sync', (event: any) => {
-    if (event.tag === 'sync-comments') {
-        event.waitUntil(syncComments());
+// ============================================================================
+// Background Sync - For offline actions
+// ============================================================================
+
+self.addEventListener('sync', (event: any) => {
+    console.log('[SW] Background sync:', event.tag);
+
+    if (event.tag === 'sync-gaps') {
+        event.waitUntil(syncQueuedGaps());
+    }
+
+    if (event.tag === 'sync-papers') {
+        event.waitUntil(syncQueuedPapers());
     }
 });
 
-async function syncComments() {
-    console.log('[ServiceWorker] Syncing queued comments');
-    // Logic to read from IndexedDB and send to Firestore
+async function syncQueuedGaps() {
+    console.log('[SW] Syncing queued gaps...');
+    // In production, read from IndexedDB and sync with server
 }
 
-// Push Notifications: Handle incoming background messages
-sw.addEventListener('push', (event: any) => {
-    const data = event.data.json();
-    const options = {
-        body: data.body,
+async function syncQueuedPapers() {
+    console.log('[SW] Syncing queued papers...');
+    // In production, read from IndexedDB and sync with server
+}
+
+// ============================================================================
+// Push Notifications
+// ============================================================================
+
+self.addEventListener('push', (event: PushEvent) => {
+    console.log('[SW] Push notification received');
+    
+    const data = event.data?.json() || {};
+    
+    const options: any = {
+        body: data.body || 'New notification from GapMiner',
         icon: '/logo192.png',
         badge: '/logo192.png',
         data: {
-            url: data.url
-        }
+            url: data.url || '/',
+            dateOfArrival: Date.now(),
+        },
+        actions: [
+            { action: 'view', title: 'View' },
+            { action: 'dismiss', title: 'Dismiss' },
+        ],
     };
+
     event.waitUntil(
-        sw.registration.showNotification(data.title, options)
+        self.registration.showNotification(data.title || 'GapMiner', options)
     );
 });
 
-export { }; // Make it a module
+// ============================================================================
+// Notification Click
+// ============================================================================
+
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+    console.log('[SW] Notification clicked');
+    
+    event.notification.close();
+
+    if (event.action === 'view' || !event.action) {
+        const url = event.notification.data?.url || '/';
+        
+        event.waitUntil(
+            self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+                .then((clientList) => {
+                    // Focus existing window if open
+                    for (const client of clientList) {
+                        if (client.url === url && 'focus' in client) {
+                            return client.focus();
+                        }
+                    }
+                    // Open new window
+                    if (self.clients.openWindow) {
+                        return self.clients.openWindow(url);
+                    }
+                })
+        );
+    }
+});
+
+// ============================================================================
+// Message Handler - For communication with main app
+// ============================================================================
+
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+    console.log('[SW] Message received:', event.data);
+
+    if (event.data?.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+
+    if (event.data?.type === 'GET_VERSION') {
+        event.ports[0].postMessage({ version: CACHE_NAME });
+    }
+});
+
+export { };

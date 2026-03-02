@@ -104,7 +104,7 @@ export function CollectionsPage() {
             const newCollection: Collection = {
                 ...collectionData,
                 id,
-                createdAt: (await import("firebase/firestore")).Timestamp.now()
+                createdAt: new Date().toISOString()
             }
             setCollections(prev => [newCollection, ...prev])
             setNewCollectionName("")
@@ -117,7 +117,7 @@ export function CollectionsPage() {
 
     const filteredCollections = collections.filter(c =>
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.description.toLowerCase().includes(searchQuery.toLowerCase())
+        (c.description || "").toLowerCase().includes(searchQuery.toLowerCase())
     )
 
     const starredCollections = filteredCollections.filter(c => c.starred)
@@ -129,7 +129,7 @@ export function CollectionsPage() {
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-[hsl(var(--brand-primary))]" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         )
     }
@@ -146,7 +146,7 @@ export function CollectionsPage() {
                             <br />
                             <span className="gradient-text">Collections</span>
                         </h1>
-                        <p className="text-lg text-[hsl(var(--muted-foreground))] max-w-2xl">
+                        <p className="text-lg text-muted-foreground max-w-2xl">
                             Organize your research gaps into themed collections.
                             Share, export, or use them to track research directions.
                         </p>
@@ -160,7 +160,7 @@ export function CollectionsPage() {
                 {/* Search */}
                 <div className="mb-8">
                     <div className="relative max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search collections..."
                             value={searchQuery}
@@ -191,7 +191,7 @@ export function CollectionsPage() {
                                             <Card
                                                 className={cn(
                                                     "cursor-pointer card-hover",
-                                                    selectedCollection === collection.id && "ring-2 ring-[hsl(var(--ring))]"
+                                                    selectedCollection === collection.id && "ring-2 ring-ring"
                                                 )}
                                                 onClick={() => setSelectedCollection(collection.id || null)}
                                             >
@@ -208,16 +208,16 @@ export function CollectionsPage() {
                                                         </div>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleToggleStar(collection) }}
-                                                            className="p-1 hover:bg-[hsl(var(--muted))] rounded"
+                                                            className="p-1 hover:bg-muted rounded"
                                                         >
                                                             <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                                                         </button>
                                                     </div>
                                                     <h3 className="font-semibold mb-1">{collection.name}</h3>
-                                                    <p className="text-sm text-[hsl(var(--muted-foreground))] mb-4 line-clamp-2">
+                                                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                                                         {collection.description}
                                                     </p>
-                                                    <div className="flex items-center gap-3 text-xs text-[hsl(var(--muted-foreground))]">
+                                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                         <span>{collection.gapCount} gaps</span>
                                                         <span>•</span>
                                                         <span>{collection.paperCount} papers</span>
@@ -248,7 +248,7 @@ export function CollectionsPage() {
                                             <Card
                                                 className={cn(
                                                     "cursor-pointer card-hover",
-                                                    selectedCollection === collection.id && "ring-2 ring-[hsl(var(--ring))]"
+                                                    selectedCollection === collection.id && "ring-2 ring-ring"
                                                 )}
                                                 onClick={() => setSelectedCollection(collection.id || null)}
                                             >
@@ -265,16 +265,16 @@ export function CollectionsPage() {
                                                         </div>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleToggleStar(collection) }}
-                                                            className="p-1 hover:bg-[hsl(var(--muted))] rounded"
+                                                            className="p-1 hover:bg-muted rounded"
                                                         >
-                                                            <StarOff className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                                                            <StarOff className="h-4 w-4 text-muted-foreground" />
                                                         </button>
                                                     </div>
                                                     <h3 className="font-semibold mb-1">{collection.name}</h3>
-                                                    <p className="text-sm text-[hsl(var(--muted-foreground))] mb-4 line-clamp-2">
+                                                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                                                         {collection.description}
                                                     </p>
-                                                    <div className="flex items-center gap-3 text-xs text-[hsl(var(--muted-foreground))]">
+                                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                         <span>{collection.gapCount} gaps</span>
                                                         <span>•</span>
                                                         <span>{collection.paperCount} papers</span>
@@ -285,7 +285,7 @@ export function CollectionsPage() {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-sm text-[hsl(var(--muted-foreground))] py-8 text-center border rounded-lg border-dashed">
+                                <p className="text-sm text-muted-foreground py-8 text-center border rounded-lg border-dashed">
                                     No other collections found.
                                 </p>
                             )}
@@ -320,23 +320,23 @@ export function CollectionsPage() {
                                                 selectedGaps.map((gap: any) => (
                                                     <div
                                                         key={gap.id}
-                                                        className="p-3 rounded-lg bg-[hsl(var(--muted))] text-sm"
+                                                        className="p-3 rounded-lg bg-muted text-sm"
                                                     >
                                                         <p className="line-clamp-2 text-xs">{gap.problem}</p>
-                                                        <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-1">
+                                                        <p className="text-[10px] text-muted-foreground mt-1">
                                                             {gap.paper}
                                                         </p>
                                                     </div>
                                                 ))
                                             ) : (
-                                                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                                                <p className="text-xs text-muted-foreground">
                                                     No gaps in this collection yet.
                                                 </p>
                                             )}
                                         </div>
                                     </div>
 
-                                    <div className="pt-4 border-t border-[hsl(var(--border))] space-y-2">
+                                    <div className="pt-4 border-t border-border space-y-2">
                                         <Link to="/explore">
                                             <Button variant="outline" size="sm" className="w-full gap-2">
                                                 <Plus className="h-3 w-3" />
@@ -349,8 +349,8 @@ export function CollectionsPage() {
                         ) : (
                             <Card className="border-dashed">
                                 <CardContent className="py-12 text-center">
-                                    <Folder className="h-12 w-12 mx-auto mb-4 text-[hsl(var(--muted-foreground))] opacity-50" />
-                                    <p className="text-[hsl(var(--muted-foreground))]">
+                                    <Folder className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                                    <p className="text-muted-foreground">
                                         Select a collection to view details
                                     </p>
                                 </CardContent>

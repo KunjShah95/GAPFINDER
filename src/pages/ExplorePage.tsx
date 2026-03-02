@@ -189,18 +189,18 @@ export function ExplorePage() {
                 {/* Search and Filter Bar */}
                 <div className="mb-8 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             id="explore-search-input"
                             placeholder={isSemanticMode ? "Describe the concept you're looking for..." : "Search gaps, papers, or keywords..."}
-                            className="pl-10 h-12 bg-[hsl(var(--muted))]/30 border-none"
+                            className="pl-10 h-12 bg-muted/30 border-none"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                         />
                         {isSearching && (
                             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--brand-primary))]" />
+                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
                             </div>
                         )}
                     </div>
@@ -209,7 +209,7 @@ export function ExplorePage() {
                             variant="outline"
                             className={cn(
                                 "h-12 px-6 gap-2 border-dashed",
-                                isSemanticMode ? "bg-[hsl(var(--brand-primary))]/10 border-[hsl(var(--brand-primary))] text-[hsl(var(--brand-primary))]" : ""
+                                isSemanticMode ? "bg-primary/10 border-primary text-primary" : ""
                             )}
                             onClick={() => setIsSemanticMode(!isSemanticMode)}
                         >
@@ -219,20 +219,20 @@ export function ExplorePage() {
                         <Button
                             id="explore-filters-toggle"
                             variant="outline"
-                            className={cn("h-12 px-6 gap-2", showFilters && "bg-[hsl(var(--muted))]")}
+                            className={cn("h-12 px-6 gap-2", showFilters && "bg-muted")}
                             onClick={() => setShowFilters(!showFilters)}
                         >
                             <SlidersHorizontal className="h-4 w-4" />
                             Filters
                             {selectedTypes.size > 0 && (
-                                <Badge className="ml-1 h-5 min-w-5 px-1 bg-[hsl(var(--brand-primary))] text-white">
+                                <Badge className="ml-1 h-5 min-w-5 px-1 bg-primary text-primary-foreground">
                                     {selectedTypes.size}
                                 </Badge>
                             )}
                         </Button>
                         <select
                             id="explore-venue-selector"
-                            className="h-12 px-4 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm outline-none focus:ring-2 focus:ring-[hsl(var(--brand-primary))]/20"
+                            className="h-12 px-4 rounded-md border border-border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/20"
                             value={selectedVenue}
                             onChange={(e) => setSelectedVenue(e.target.value)}
                         >
@@ -250,7 +250,7 @@ export function ExplorePage() {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden mb-8"
                         >
-                            <Card className="bg-[hsl(var(--muted))]/10 border-dashed">
+                            <Card className="bg-muted/10 border-dashed">
                                 <CardContent className="pt-6">
                                     <div className="flex flex-wrap gap-3">
                                         {Object.entries(typeConfig).map(([id, config]) => {
@@ -264,8 +264,8 @@ export function ExplorePage() {
                                                     className={cn(
                                                         "flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all",
                                                         isSelected
-                                                            ? `bg-[hsl(var(--brand-primary))] border-[hsl(var(--brand-primary))] text-white`
-                                                            : "bg-white border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--brand-primary))]"
+                                                            ? "bg-primary border-primary text-primary-foreground"
+                                                            : "bg-background border-border text-muted-foreground hover:border-primary"
                                                     )}
                                                 >
                                                     <Icon className="h-4 w-4" />
@@ -296,16 +296,16 @@ export function ExplorePage() {
                 {isLoading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="h-[280px] rounded-xl bg-[hsl(var(--muted))]/20 animate-pulse" />
+                            <div key={i} className="h-[280px] rounded-xl bg-muted/20 animate-pulse" />
                         ))}
                     </div>
                 ) : filteredGaps.length === 0 ? (
-                    <div className="text-center py-20 px-4 bg-[hsl(var(--muted))]/10 rounded-2xl border-2 border-dashed border-[hsl(var(--border))]">
-                        <div className="h-16 w-16 bg-[hsl(var(--muted))] rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Search className="h-8 w-8 text-[hsl(var(--muted-foreground))]" />
+                    <div className="text-center py-20 px-4 bg-muted/10 rounded-2xl border-2 border-dashed border-border">
+                        <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Search className="h-8 w-8 text-muted-foreground" />
                         </div>
                         <h3 className="text-xl font-semibold mb-2">No matching gaps found</h3>
-                        <p className="text-[hsl(var(--muted-foreground))] max-w-sm mx-auto mb-8">
+                        <p className="text-muted-foreground max-w-sm mx-auto mb-8">
                             Try adjusting your filters or search query to find more research opportunities.
                         </p>
                         <Button
@@ -332,13 +332,13 @@ export function ExplorePage() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05 }}
                                 >
-                                    <Card className="card-hover h-full flex flex-col group overflow-hidden border-[hsl(var(--border))]">
+                                    <Card className="card-hover h-full flex flex-col group overflow-hidden border-border">
                                         <CardContent className="p-6 flex flex-col h-full">
                                             {/* Top Row: Type and Metadata */}
                                             <div className="flex items-center justify-between mb-4">
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`p-1.5 rounded-lg bg-[hsl(var(--brand-primary))]/10`}>
-                                                        <Icon className={`h-4 w-4 text-[hsl(var(--brand-primary))]`} />
+                                                    <div className="p-1.5 rounded-lg bg-primary/10">
+                                                        <Icon className="h-4 w-4 text-primary" />
                                                     </div>
                                                     <Badge variant={gap.type} className="uppercase font-bold tracking-tighter text-[10px]">
                                                         {gap.type}
@@ -364,7 +364,7 @@ export function ExplorePage() {
                                             </div>
 
                                             {/* Problem Title */}
-                                            <h3 className="text-lg font-bold mb-4 line-clamp-3 leading-tight group-hover:text-[hsl(var(--brand-primary))] transition-colors">
+                                            <h3 className="text-lg font-bold mb-4 line-clamp-3 leading-tight group-hover:text-primary transition-colors">
                                                 {gap.problem}
                                             </h3>
 
@@ -389,10 +389,10 @@ export function ExplorePage() {
 
                                             {/* Source Paper */}
                                             <div className="mt-auto pt-4 flex flex-col gap-3">
-                                                <div className="p-3 bg-[hsl(var(--muted))]/30 rounded-lg">
-                                                    <p className="text-[10px] text-[hsl(var(--muted-foreground))] mb-1 flex items-center justify-between">
+                                                <div className="p-3 bg-muted/30 rounded-lg">
+                                                    <p className="text-[10px] text-muted-foreground mb-1 flex items-center justify-between">
                                                         <span>Identified in:</span>
-                                                        <span className="font-mono bg-[hsl(var(--background))] px-1 rounded border border-[hsl(var(--border))]">{gap.venue}</span>
+                                                        <span className="font-mono bg-background px-1 rounded border border-border">{gap.venue}</span>
                                                     </p>
                                                     <p className="text-xs font-medium line-clamp-1">{gap.paper}</p>
                                                     <a
@@ -400,7 +400,7 @@ export function ExplorePage() {
                                                         href={gap.url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="text-[10px] text-[hsl(var(--brand-primary))] hover:underline mt-1 flex items-center gap-1"
+                                                        className="text-[10px] text-primary hover:underline mt-1 flex items-center gap-1"
                                                     >
                                                         View Paper <ExternalLink className="h-2 w-2" />
                                                     </a>
@@ -525,7 +525,7 @@ export function ExplorePage() {
                                                     </div>
 
                                                     {/* Visionary Tools Row */}
-                                                    <div className="flex flex-wrap gap-1.5 w-full mt-1 border-t border-dashed border-[hsl(var(--border))] pt-3">
+                                                    <div className="flex flex-wrap gap-1.5 w-full mt-1 border-t border-dashed border-border pt-3">
                                                         <Button
                                                             id={`gap-proposal-${i}`}
                                                             variant="outline"
@@ -592,8 +592,8 @@ export function ExplorePage() {
                                                             className={cn(
                                                                 "h-7 text-[8px] gap-1 px-1.5 border-solid transition-all",
                                                                 comparisonGaps.find(g => g.id === gap.id)
-                                                                    ? "bg-[hsl(var(--brand-primary))] text-white border-[hsl(var(--brand-primary))]"
-                                                                    : "hover:bg-[hsl(var(--brand-primary))]/10 border-[hsl(var(--border))]"
+                                                                    ? "bg-primary text-primary-foreground border-primary"
+                                                                    : "hover:bg-primary/10 border-border"
                                                             )}
                                                             onClick={() => toggleCompare(gap)}
                                                         >
@@ -632,7 +632,7 @@ export function ExplorePage() {
                             <div className="flex items-center gap-4">
                                 <div className="flex -space-x-3">
                                     {comparisonGaps.map((g, i) => (
-                                        <div key={i} className="h-8 w-8 rounded-full bg-[hsl(var(--brand-primary))] border-2 border-black flex items-center justify-center text-[10px] font-bold">
+                                        <div key={i} className="h-8 w-8 rounded-full bg-primary border-2 border-background flex items-center justify-center text-[10px] font-bold text-primary-foreground">
                                             {g.type[0].toUpperCase()}
                                         </div>
                                     ))}

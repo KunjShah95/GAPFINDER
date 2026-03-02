@@ -33,7 +33,7 @@ export function ResearchTrends({ timeframe = "6m" }: ResearchTrendsProps) {
     async function loadTrends() {
         setIsLoading(true)
         try {
-            const data = await getTrendPredictions(undefined, selectedTimeframe)
+            const data = await getTrendPredictions([], selectedTimeframe)
             setTrends(data)
         } catch (error) {
             console.error("Failed to load trends:", error)

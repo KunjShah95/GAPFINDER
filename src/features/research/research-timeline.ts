@@ -253,7 +253,7 @@ export function calculateResearchMaturity(
 
   if (growthRate > 2 && hasBenchmarks && hasConferences) return "mature"
   if (growthRate > 1.5) return "growing"
-  if (statistics.totalPapers < 50) return "emerging"
+  if (statistics.papersPublished < 50) return "emerging"
   return "saturated"
 }
 

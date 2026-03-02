@@ -1,12 +1,30 @@
 import { motion } from "framer-motion"
+import { useQuery } from "@tanstack/react-query"
+import { getAccessToken } from "@/lib/api-client"
 import { BarChart3, TrendingUp, Activity } from "lucide-react"
 
 export default function AnalyticsPage() {
+  const { data: overview } = useQuery({
+    queryKey: ['analytics-overview'],
+    queryFn: async () => {
+      const token = getAccessToken()
+      const res = await fetch('/api/analytics/overview?period=30', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error('Failed to fetch analytics')
+      return res.json() as Promise<{
+        papers: { total_papers: number; papers_this_week: number; avg_citations: number }
+        gaps: { total_gaps: number; resolved_gaps: number }
+      }>
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const metrics = [
-    { label: "Papers Analyzed", value: "2,847", change: "+12%", trend: "up" },
-    { label: "Gaps Found", value: "456", change: "+8%", trend: "up" },
-    { label: "Citations Tracked", value: "125K", change: "+23%", trend: "up" },
-    { label: "Workflows Run", value: "89", change: "+5%", trend: "up" },
+    { label: "Papers Analyzed", value: overview ? overview.papers.total_papers.toLocaleString() : '—', change: overview ? `+${overview.papers.papers_this_week} this week` : 'Loading…', trend: "up" },
+    { label: "Gaps Found", value: overview ? overview.gaps.total_gaps.toLocaleString() : '—', change: overview ? `${overview.gaps.resolved_gaps ?? 0} resolved` : 'Loading…', trend: "up" },
+    { label: "Avg Citations", value: overview ? (overview.papers.avg_citations ?? 0).toLocaleString() : '—', change: "per paper", trend: "up" },
+    { label: "Workflows Run", value: "—", change: "coming soon", trend: "up" },
   ]
 
   return (

@@ -1,28 +1,21 @@
 // Typed Gemini Client Wrapper
-// Abstracts common patterns: API key checks, response parsing, error handling
-import { GoogleGenAI } from "@google/genai"
+// Abstracts common patterns: response parsing, error handling
+// All calls are proxied through the secure backend — no API keys in the browser
+import { apiRequest } from '@/lib/api-client'
 import { z } from "zod"
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const getApiKey = (): string => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-    if (!apiKey) {
-        throw new GeminiConfigError("Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your .env file.")
-    }
-    return apiKey
-}
-
-// Lazy initialization to avoid issues if env var not set at import time
-let _genaiInstance: GoogleGenAI | null = null
-
-function getGenAI(): GoogleGenAI {
-    if (!_genaiInstance) {
-        _genaiInstance = new GoogleGenAI({ apiKey: getApiKey() })
-    }
-    return _genaiInstance
+// Backend proxy — all calls routed through /api/ai/prompt
+async function _callBackend(prompt: string): Promise<string> {
+    const result = await apiRequest<{ text: string }>('/ai/prompt', {
+        method: 'POST',
+        body: { prompt },
+        timeout: 120_000,
+    });
+    return result.text || '';
 }
 
 // ============================================================================
@@ -108,13 +101,7 @@ export async function queryGemini<T>(request: GeminiRequest<T>): Promise<T | T[]
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-            const genai = getGenAI()
-            const response = await genai.models.generateContent({
-                model,
-                contents: prompt,
-            })
-
-            const text = response.text || ""
+            const text = await _callBackend(prompt)
 
             if (responseType === "text") {
                 return text

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { useAuth } from "@/context/AuthContext"
 import {
@@ -18,8 +18,8 @@ import { PrimeHero } from "@/components/layout/PrimeHero"
 
 const publicNavItems = [
   { name: "Features", href: "#features" },
-  { name: "How It Works", href: "#how-it-works" },
-  { name: "Pricing", href: "#pricing" },
+  { name: "How it works", href: "#how-it-works" },
+  { name: "Pricing", href: "/pricing" },
 ]
 
 const stats = [
@@ -126,9 +126,15 @@ export function HomePage() {
             
             <div className="hidden md:flex items-center gap-8">
               {publicNavItems.map((item) => (
-                <a key={item.name} href={item.href} className="text-sm text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors">
-                  {item.name}
-                </a>
+                item.href.startsWith('/') ? (
+                  <Link key={item.name} to={item.href} className="text-sm text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors">
+                    {item.name}
+                  </Link>
+                ) : (
+                  <a key={item.name} href={item.href} className="text-sm text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors">
+                    {item.name}
+                  </a>
+                )
               ))}
             </div>
 

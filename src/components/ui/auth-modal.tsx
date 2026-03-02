@@ -54,7 +54,12 @@ export function AuthModal() {
         setError("")
         setIsLoading(true)
         try {
-            await loginWithGoogle()
+            const success = await loginWithGoogle()
+            if (success) {
+                setShowAuthModal(false)
+            } else {
+                setError("Google sign-in is not available yet. Please use email and password.")
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to sign in with Google")
         } finally {

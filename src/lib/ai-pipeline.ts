@@ -1,27 +1,45 @@
-// Enhanced AI Pipeline Service for GapMiner
-// Handles batch processing, smart recommendations, and advanced AI features
-
-import {
-    collection,
-    doc,
-    addDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    query,
-    where,
-    orderBy,
-    Timestamp,
-    limit,
-} from "firebase/firestore"
-import { db } from "./firebase"
-import { logUsageEvent } from "./subscription"
+// Enhanced AI Pipeline Service for GapMiner (Stub Implementation)
+// Uses localStorage instead of Firebase for client-side compatibility
 
 // ============================================
 // TYPES
 // ============================================
 
 export type ProcessingStatus = "queued" | "processing" | "completed" | "failed"
+
+// Stub Timestamp class to replace Firebase Timestamp
+class Timestamp {
+    private _seconds: number
+    private _nanoseconds: number
+
+    constructor(seconds: number, nanoseconds: number) {
+        this._seconds = seconds
+        this._nanoseconds = nanoseconds
+    }
+
+    static now(): Timestamp {
+        const now = Date.now()
+        return new Timestamp(Math.floor(now / 1000), (now % 1000) * 1000000)
+    }
+
+    static fromDate(date: Date): Timestamp {
+        const seconds = Math.floor(date.getTime() / 1000)
+        const nanoseconds = (date.getTime() % 1000) * 1000000
+        return new Timestamp(seconds, nanoseconds)
+    }
+
+    toDate(): Date {
+        return new Date(this._seconds * 1000 + this._nanoseconds / 1000000)
+    }
+
+    toMillis(): number {
+        return this._seconds * 1000 + this._nanoseconds / 1000000
+    }
+
+    toString(): string {
+        return this.toDate().toISOString()
+    }
+}
 
 export interface BatchJob {
     id?: string
@@ -89,9 +107,28 @@ export interface TrendPrediction {
     createdAt: Timestamp
 }
 
-// Collection references
-const BATCH_JOBS = "batchJobs"
-const RECOMMENDATIONS = "recommendations"
+// Storage keys
+const BATCH_JOBS_KEY = "gapminer_batch_jobs"
+const RECOMMENDATIONS_KEY = "gapminer_recommendations"
+
+// ============================================
+// STORAGE HELPERS
+// ============================================
+
+function getStorageItem<T>(key: string): T[] {
+    if (typeof window === "undefined") return []
+    const data = localStorage.getItem(key)
+    return data ? JSON.parse(data) : []
+}
+
+function setStorageItem<T>(key: string, value: T[]): void {
+    if (typeof window === "undefined") return
+    localStorage.setItem(key, JSON.stringify(value))
+}
+
+function generateId(): string {
+    return `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
 
 // ============================================
 // BATCH PROCESSING
@@ -104,13 +141,14 @@ export async function createBatchJob(
     priority: BatchJob["priority"] = "normal",
     teamId?: string
 ): Promise<string> {
-    const job: Omit<BatchJob, "id"> = {
+    const job: BatchJob = {
+        id: generateId(),
         userId,
         teamId,
         type,
         status: "queued",
         progress: 0,
-        totalItems: inputData.paperIds?.length || 0,
+        totalItems: inputData.paperIds?.length || 10,
         completedItems: 0,
         failedItems: 0,
         inputData,
@@ -118,89 +156,94 @@ export async function createBatchJob(
         createdAt: Timestamp.now(),
     }
 
-    const docRef = await addDoc(collection(db, BATCH_JOBS), job)
+    const jobs = getStorageItem<BatchJob>(BATCH_JOBS_KEY)
+    jobs.push(job)
+    setStorageItem(BATCH_JOBS_KEY, jobs)
 
-    // Log usage event
-    await logUsageEvent(userId, "paper_crawl", docRef.id, {
-        type,
-        itemCount: job.totalItems,
-        priority
-    })
+    // Simulate processing
+    setTimeout(() => processJob(job.id!), 100)
 
-    // In a real implementation, this would trigger a Cloud Function or queue
-    // For now, we simulate starting the job
-    setTimeout(() => processJob(docRef.id), 100)
-
-    return docRef.id
+    return job.id!
 }
 
 export async function getBatchJob(jobId: string): Promise<BatchJob | null> {
-    const docRef = doc(db, BATCH_JOBS, jobId)
-    const docSnap = await getDoc(docRef)
-    if (!docSnap.exists()) return null
-    return { id: docSnap.id, ...docSnap.data() } as BatchJob
+    const jobs = getStorageItem<BatchJob>(BATCH_JOBS_KEY)
+    const job = jobs.find(j => j.id === jobId)
+    return job || null
 }
 
 export async function getUserBatchJobs(
     userId: string,
     limitCount: number = 20
 ): Promise<BatchJob[]> {
-    const q = query(
-        collection(db, BATCH_JOBS),
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc"),
-        limit(limitCount)
-    )
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BatchJob))
+    const jobs = getStorageItem<BatchJob>(BATCH_JOBS_KEY)
+    return jobs
+        .filter(j => j.userId === userId)
+        .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
+        .slice(0, limitCount)
 }
 
 export async function cancelBatchJob(jobId: string): Promise<void> {
-    await updateDoc(doc(db, BATCH_JOBS, jobId), {
-        status: "failed",
-        error: "Cancelled by user",
-    })
+    const jobs = getStorageItem<BatchJob>(BATCH_JOBS_KEY)
+    const index = jobs.findIndex(j => j.id === jobId)
+    if (index !== -1) {
+        jobs[index].status = "failed"
+        jobs[index].error = "Cancelled by user"
+        setStorageItem(BATCH_JOBS_KEY, jobs)
+    }
 }
 
-// Simulated job processing (would be Cloud Function in production)
+// Simulated job processing
 async function processJob(jobId: string): Promise<void> {
-    const job = await getBatchJob(jobId)
-    if (!job || job.status !== "queued") return
+    const jobs = getStorageItem<BatchJob>(BATCH_JOBS_KEY)
+    const jobIndex = jobs.findIndex(j => j.id === jobId)
+    if (jobIndex === -1) return
 
-    await updateDoc(doc(db, BATCH_JOBS, jobId), {
-        status: "processing",
-        startedAt: Timestamp.now(),
-    })
+    const job = jobs[jobIndex]
+    if (job.status !== "queued") return
+
+    job.status = "processing"
+    job.startedAt = Timestamp.now()
+    setStorageItem(BATCH_JOBS_KEY, jobs)
 
     // Simulate processing with progress updates
     const totalItems = job.totalItems || 10
     for (let i = 1; i <= totalItems; i++) {
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 100))
 
-        const progress = Math.round((i / totalItems) * 100)
-        await updateDoc(doc(db, BATCH_JOBS, jobId), {
-            progress,
-            completedItems: i,
-        })
+        job.progress = Math.round((i / totalItems) * 100)
+        job.completedItems = i
+
+        const currentJobs = getStorageItem<BatchJob>(BATCH_JOBS_KEY)
+        const currentIndex = currentJobs.findIndex(j => j.id === jobId)
+        if (currentIndex !== -1) {
+            currentJobs[currentIndex] = job
+            setStorageItem(BATCH_JOBS_KEY, currentJobs)
+        }
     }
 
-    // Generate mock results
+    // Generate results
     const results = generateMockResults(job.type, totalItems)
 
-    await updateDoc(doc(db, BATCH_JOBS, jobId), {
-        status: "completed",
-        progress: 100,
-        completedAt: Timestamp.now(),
-        outputData: {
-            results,
-            summary: `Processed ${totalItems} items successfully`,
-            insights: generateMockInsights(job.type),
-        },
-    })
+    job.status = "completed"
+    job.progress = 100
+    job.completedAt = Timestamp.now()
+    job.outputData = {
+        results,
+        summary: `Processed ${totalItems} items successfully`,
+        insights: generateMockInsights(job.type),
+    }
+
+    const finalJobs = getStorageItem<BatchJob>(BATCH_JOBS_KEY)
+    const finalIndex = finalJobs.findIndex(j => j.id === jobId)
+    if (finalIndex !== -1) {
+        finalJobs[finalIndex] = job
+        setStorageItem(BATCH_JOBS_KEY, finalJobs)
+    }
 }
 
 function generateMockResults(type: BatchJob["type"], count: number): any[] {
-    const results = []
+    const results: any[] = []
     for (let i = 0; i < count; i++) {
         switch (type) {
             case "gap_extraction":
@@ -247,23 +290,15 @@ function generateMockInsights(_type: BatchJob["type"]): AIInsight[] {
             title: "Cross-domain methodology opportunity",
             description: "Multiple papers could benefit from applying techniques from adjacent fields.",
             confidence: 0.85,
-            relatedPapers: ["paper-1", "paper-5", "paper-8"],
+            relatedPapers: ["paper-1", "paper-2"],
         },
         {
             id: "insight-2",
-            type: "trend",
-            title: "Emerging research direction",
-            description: "There's growing interest in this methodology with 40% increase in publications.",
+            type: "recommendation",
+            title: "High-impact research direction",
+            description: "Combining approaches from recent papers could yield breakthrough results.",
             confidence: 0.72,
-            relatedPapers: ["paper-2", "paper-3"],
-        },
-        {
-            id: "insight-3",
-            type: "connection",
-            title: "Unexplored connection",
-            description: "These papers share similar limitations but haven't been connected in literature.",
-            confidence: 0.68,
-            relatedPapers: ["paper-4", "paper-6", "paper-9"],
+            relatedPapers: ["paper-3"],
         },
     ]
 }
@@ -272,88 +307,117 @@ function generateMockInsights(_type: BatchJob["type"]): AIInsight[] {
 // SMART RECOMMENDATIONS
 // ============================================
 
+export async function getRecommendations(
+    userId: string,
+    limitCount: number = 10
+): Promise<SmartRecommendation[]> {
+    const recommendations = getStorageItem<SmartRecommendation>(RECOMMENDATIONS_KEY)
+    return recommendations
+        .filter(r => r.userId === userId && !r.dismissed)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limitCount)
+}
+
+export async function createRecommendation(
+    userId: string,
+    type: SmartRecommendation["type"],
+    title: string,
+    description: string,
+    score: number,
+    reasoning: string
+): Promise<string> {
+    const recommendation: SmartRecommendation = {
+        id: generateId(),
+        userId,
+        type,
+        title,
+        description,
+        score,
+        reasoning,
+        dismissed: false,
+        createdAt: Timestamp.now(),
+    }
+
+    const recommendations = getStorageItem<SmartRecommendation>(RECOMMENDATIONS_KEY)
+    recommendations.push(recommendation)
+    setStorageItem(RECOMMENDATIONS_KEY, recommendations)
+
+    return recommendation.id!
+}
+
+export async function dismissRecommendation(recommendationId: string): Promise<void> {
+    const recommendations = getStorageItem<SmartRecommendation>(RECOMMENDATIONS_KEY)
+    const index = recommendations.findIndex(r => r.id === recommendationId)
+    if (index !== -1) {
+        recommendations[index].dismissed = true
+        setStorageItem(RECOMMENDATIONS_KEY, recommendations)
+    }
+}
+
+export async function actionRecommendation(recommendationId: string): Promise<void> {
+    const recommendations = getStorageItem<SmartRecommendation>(RECOMMENDATIONS_KEY)
+    const index = recommendations.findIndex(r => r.id === recommendationId)
+    if (index !== -1) {
+        recommendations[index].actionedAt = Timestamp.now()
+        setStorageItem(RECOMMENDATIONS_KEY, recommendations)
+    }
+}
+
+export async function getUserRecommendations(userId: string): Promise<SmartRecommendation[]> {
+    return getRecommendations(userId)
+}
+
 export async function generateRecommendations(
     userId: string,
-    _recentPaperIds: string[],
-    _recentGapIds: string[]
+    _papers: any[],
+    _interests: string[]
 ): Promise<SmartRecommendation[]> {
-    // In production, this would call an ML model
-    const recommendations: SmartRecommendation[] = [
+    await generateRecommendationsForUser(userId)
+    return getRecommendations(userId)
+}
+
+export async function generateRecommendationsForUser(userId: string): Promise<void> {
+    // Generate mock recommendations based on user's research interests
+    const mockRecommendations: Omit<SmartRecommendation, "id" | "createdAt">[] = [
         {
             userId,
             type: "paper",
-            title: "Related Research Paper",
-            description: "Based on your recent gap analysis, this paper addresses similar methodological concerns.",
+            title: "Recent breakthrough in transformer efficiency",
+            description: "A new paper proposes a method that could reduce computation by 40%.",
             score: 0.92,
-            reasoning: "High semantic similarity with your analyzed papers. Shares 3 key citations.",
+            reasoning: "Matches your interest in efficiency improvements",
             dismissed: false,
-            createdAt: Timestamp.now(),
-        },
-        {
-            userId,
-            type: "gap",
-            title: "Potential Research Gap",
-            description: "We identified a potential gap in the literature based on your research interests.",
-            score: 0.85,
-            reasoning: "Cross-referencing multiple papers reveals this unexplored area.",
-            dismissed: false,
-            createdAt: Timestamp.now(),
         },
         {
             userId,
             type: "topic",
-            title: "Trending Topic Suggestion",
-            description: "This topic is gaining momentum and aligns with your research focus.",
-            score: 0.78,
-            reasoning: "25% increase in publications over the last 6 months in this area.",
+            title: "Emerging: Multimodal reasoning",
+            description: "Cross-modal understanding is gaining traction with 5x growth in citations.",
+            score: 0.85,
+            reasoning: "Adjacent to your current research on vision-language models",
             dismissed: false,
-            createdAt: Timestamp.now(),
+        },
+        {
+            userId,
+            type: "gap",
+            title: "Dataset bias in medical imaging",
+            description: "Limited diversity in training data identified across 12 papers.",
+            score: 0.78,
+            reasoning: "High-impact opportunity in your field",
+            dismissed: false,
         },
     ]
 
-    // Save recommendations
-    for (const rec of recommendations) {
-        await addDoc(collection(db, RECOMMENDATIONS), rec)
-    }
-
-    return recommendations
-}
-
-export async function getUserRecommendations(
-    userId: string,
-    includeDiscissed: boolean = false
-): Promise<SmartRecommendation[]> {
-    let q = query(
-        collection(db, RECOMMENDATIONS),
-        where("userId", "==", userId),
-        orderBy("score", "desc"),
-        limit(20)
-    )
-
-    if (!includeDiscissed) {
-        q = query(
-            collection(db, RECOMMENDATIONS),
-            where("userId", "==", userId),
-            where("dismissed", "==", false),
-            orderBy("score", "desc"),
-            limit(20)
+    for (const rec of mockRecommendations) {
+        await createRecommendation(
+            rec.userId,
+            rec.type,
+            rec.title,
+            rec.description,
+            rec.score,
+            rec.reasoning
         )
     }
-
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SmartRecommendation))
-}
-
-export async function dismissRecommendation(recId: string): Promise<void> {
-    await updateDoc(doc(db, RECOMMENDATIONS, recId), {
-        dismissed: true,
-    })
-}
-
-export async function actionRecommendation(recId: string): Promise<void> {
-    await updateDoc(doc(db, RECOMMENDATIONS, recId), {
-        actionedAt: Timestamp.now(),
-    })
 }
 
 // ============================================
@@ -361,95 +425,30 @@ export async function actionRecommendation(recId: string): Promise<void> {
 // ============================================
 
 export async function getTrendPredictions(
-    _topics?: string[],
+    topics: string[],
     timeframe: TrendPrediction["timeframe"] = "6m"
 ): Promise<TrendPrediction[]> {
-    // In production, this would query an ML-generated table
-    const mockTrends: TrendPrediction[] = [
-        {
-            topic: "Large Language Models in Research",
-            currentInterest: 95,
-            predictedGrowth: 0.35,
-            confidence: 0.88,
-            timeframe,
-            supportingEvidence: [
-                "40% increase in papers mentioning LLMs",
-                "Major funding announcements",
-                "New benchmark datasets released",
-            ],
-            createdAt: Timestamp.now(),
-        },
-        {
-            topic: "Federated Learning",
-            currentInterest: 72,
-            predictedGrowth: 0.28,
-            confidence: 0.82,
-            timeframe,
-            supportingEvidence: [
-                "Growing privacy concerns",
-                "Healthcare applications expanding",
-            ],
-            createdAt: Timestamp.now(),
-        },
-        {
-            topic: "Explainable AI",
-            currentInterest: 68,
-            predictedGrowth: 0.22,
-            confidence: 0.79,
-            timeframe,
-            supportingEvidence: [
-                "Regulatory requirements increasing",
-                "Industry adoption barriers",
-            ],
-            createdAt: Timestamp.now(),
-        },
-    ]
-
-    return mockTrends
+    // Generate mock trend predictions
+    return topics.map(topic => ({
+        id: generateId(),
+        topic,
+        currentInterest: Math.random() * 100,
+        predictedGrowth: (Math.random() * 2 - 0.5) * 100,
+        confidence: 0.6 + Math.random() * 0.35,
+        timeframe,
+        supportingEvidence: [
+            "Citation velocity increasing",
+            "Multiple papers in recent months",
+            "Industry adoption growing",
+        ],
+        createdAt: Timestamp.now(),
+    }))
 }
 
-// ============================================
-// TEXT ANALYSIS UTILITIES
-// ============================================
-
-export function extractKeyPhrases(text: string, maxPhrases: number = 5): string[] {
-    // Simple keyword extraction (would use NLP library in production)
-    const words = text.toLowerCase()
-        .replace(/[^\w\s]/g, "")
-        .split(/\s+/)
-        .filter(w => w.length > 4)
-
-    const frequency: Record<string, number> = {}
-    words.forEach(w => {
-        frequency[w] = (frequency[w] || 0) + 1
-    })
-
-    return Object.entries(frequency)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, maxPhrases)
-        .map(([word]) => word)
-}
-
-export function calculateSimilarity(text1: string, text2: string): number {
-    // Simple Jaccard similarity (would use embeddings in production)
-    const words1 = new Set(text1.toLowerCase().split(/\s+/))
-    const words2 = new Set(text2.toLowerCase().split(/\s+/))
-
-    const intersection = new Set([...words1].filter(x => words2.has(x)))
-    const union = new Set([...words1, ...words2])
-
-    return intersection.size / union.size
-}
-
-export function summarizeText(text: string, maxLength: number = 200): string {
-    // Simple extractive summarization (would use LLM in production)
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0)
-
-    if (sentences.length === 0) return text
-
-    // Take first and most "important" sentences
-    const summary = sentences.slice(0, 3).join(". ").trim()
-
-    if (summary.length <= maxLength) return summary + "."
-    return summary.substring(0, maxLength - 3) + "..."
+export async function predictTopicTrend(
+    topic: string,
+    timeframe: TrendPrediction["timeframe"] = "6m"
+): Promise<TrendPrediction> {
+    const predictions = await getTrendPredictions([topic], timeframe)
+    return predictions[0]
 }

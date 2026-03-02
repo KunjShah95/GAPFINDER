@@ -1,19 +1,64 @@
 // Subscription and Usage Service for GapMiner SaaS
 // Manages user subscriptions, usage tracking, and quota enforcement
+// Storage: localStorage (no Firebase dependency)
 
-import {
-    collection,
-    doc,
-    addDoc,
-    getDocs,
-    updateDoc,
-    query,
-    where,
-    orderBy,
-    Timestamp,
-    increment,
-} from "firebase/firestore"
-import { db } from "./firebase"
+// ── Timestamp shim ──────────────────────────────────────────────────────────
+export class Timestamp {
+    seconds: number
+    nanoseconds: number
+
+    constructor(seconds: number, nanoseconds = 0) {
+        this.seconds = seconds
+        this.nanoseconds = nanoseconds
+    }
+
+    static now(): Timestamp {
+        const ms = Date.now()
+        return new Timestamp(Math.floor(ms / 1000), (ms % 1000) * 1_000_000)
+    }
+
+    static fromDate(date: Date): Timestamp {
+        return new Timestamp(Math.floor(date.getTime() / 1000))
+    }
+
+    toDate(): Date {
+        return new Date(this.seconds * 1000)
+    }
+
+    toMillis(): number {
+        return this.seconds * 1000
+    }
+}
+
+// ── localStorage helpers ─────────────────────────────────────────────────────
+const PREFIX = 'gapminer:sub:'
+
+function ls_read<T>(key: string): T | null {
+    try {
+        const raw = localStorage.getItem(PREFIX + key)
+        if (!raw) return null
+        const parsed = JSON.parse(raw)
+        // Revive plain objects as Timestamp instances
+        const revive = (obj: any): any => {
+            if (obj && typeof obj === 'object') {
+                if ('seconds' in obj && 'nanoseconds' in obj && !('toDate' in obj)) {
+                    return new Timestamp(obj.seconds, obj.nanoseconds)
+                }
+                for (const k of Object.keys(obj)) obj[k] = revive(obj[k])
+            }
+            return obj
+        }
+        return revive(parsed) as T
+    } catch { return null }
+}
+
+function ls_write(key: string, data: any): void {
+    try { localStorage.setItem(PREFIX + key, JSON.stringify(data)) } catch { /* quota */ }
+}
+
+function makeId(): string {
+    return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`
+}
 
 // SUBSCRIPTION TIERS
 export type SubscriptionTier = "free" | "pro" | "team" | "enterprise"
@@ -27,6 +72,17 @@ export interface TierLimits {
     priorityProcessing: boolean
     exportFormats: string[]
     historyRetention: number // days
+    // New feature limits
+    alertsLimit: number          // max research alerts (-1 = unlimited)
+    latestPapersPublishers: number  // how many publisher feeds accessible (-1 = all)
+    latestPapersRefresh: boolean    // can manually trigger cron refresh
+    chatMessagesPerMonth: number // AI chat messages per month (-1 = unlimited)
+    workflowsLimit: number       // max saved automation workflows (-1 = unlimited)
+    knowledgeGraphNodes: number  // max nodes in knowledge graph (-1 = unlimited)
+    advancedExport: boolean      // PDF / markdown / API export formats
+    competitorTracking: boolean  // competitor analysis feature
+    grantMatching: boolean       // grant matching feature
+    impactPrediction: boolean    // research impact prediction
 }
 
 export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
@@ -39,6 +95,16 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
         priorityProcessing: false,
         exportFormats: ["csv"],
         historyRetention: 30,
+        alertsLimit: 3,
+        latestPapersPublishers: 2,   // arXiv + PubMed only
+        latestPapersRefresh: false,
+        chatMessagesPerMonth: 20,
+        workflowsLimit: 2,
+        knowledgeGraphNodes: 100,
+        advancedExport: false,
+        competitorTracking: false,
+        grantMatching: false,
+        impactPrediction: false,
     },
     pro: {
         papersPerMonth: 500,
@@ -49,6 +115,16 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
         priorityProcessing: true,
         exportFormats: ["csv", "json", "pdf"],
         historyRetention: 365,
+        alertsLimit: 20,
+        latestPapersPublishers: 5,   // arXiv, PubMed, CrossRef, bioRxiv, PLOS
+        latestPapersRefresh: true,
+        chatMessagesPerMonth: 500,
+        workflowsLimit: 20,
+        knowledgeGraphNodes: 1000,
+        advancedExport: true,
+        competitorTracking: true,
+        grantMatching: true,
+        impactPrediction: false,
     },
     team: {
         papersPerMonth: 2000,
@@ -59,6 +135,16 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
         priorityProcessing: true,
         exportFormats: ["csv", "json", "pdf", "markdown"],
         historyRetention: 730,
+        alertsLimit: 50,
+        latestPapersPublishers: 8,   // all 8 publishers
+        latestPapersRefresh: true,
+        chatMessagesPerMonth: 2000,
+        workflowsLimit: 100,
+        knowledgeGraphNodes: 5000,
+        advancedExport: true,
+        competitorTracking: true,
+        grantMatching: true,
+        impactPrediction: true,
     },
     enterprise: {
         papersPerMonth: -1, // unlimited
@@ -69,6 +155,16 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
         priorityProcessing: true,
         exportFormats: ["csv", "json", "pdf", "markdown", "api"],
         historyRetention: -1, // unlimited
+        alertsLimit: -1,
+        latestPapersPublishers: -1,  // all publishers
+        latestPapersRefresh: true,
+        chatMessagesPerMonth: -1,
+        workflowsLimit: -1,
+        knowledgeGraphNodes: -1,
+        advancedExport: true,
+        competitorTracking: true,
+        grantMatching: true,
+        impactPrediction: true,
     },
 }
 
@@ -109,12 +205,7 @@ export interface UsageEvent {
     createdAt: Timestamp
 }
 
-// Collection references
-const SUBSCRIPTIONS = "subscriptions"
-const USAGE_RECORDS = "usageRecords"
-const USAGE_EVENTS = "usageEvents"
-
-// SUBSCRIPTION MANAGEMENT
+// ── SUBSCRIPTION MANAGEMENT ─────────────────────────────────────────────────
 
 export async function createSubscription(
     userId: string,
@@ -124,11 +215,12 @@ export async function createSubscription(
     const now = Timestamp.now()
     const trialEnd = new Date()
     trialEnd.setDate(trialEnd.getDate() + trialDays)
-
     const periodEnd = new Date()
     periodEnd.setMonth(periodEnd.getMonth() + 1)
 
-    const subscription: Omit<Subscription, "id"> = {
+    const id = makeId()
+    const subscription: Subscription = {
+        id,
         userId,
         tier,
         status: tier === "free" ? "active" : "trialing",
@@ -139,39 +231,22 @@ export async function createSubscription(
         createdAt: now,
         updatedAt: now,
     }
-
-    const docRef = await addDoc(collection(db, SUBSCRIPTIONS), subscription)
-
-    // Initialize usage record for this period
+    ls_write(`sub:${userId}`, subscription)
     await initializeUsageRecord(userId, now, Timestamp.fromDate(periodEnd))
-
-    return docRef.id
+    return id
 }
 
 export async function getSubscription(userId: string): Promise<Subscription | null> {
-    const q = query(
-        collection(db, SUBSCRIPTIONS),
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc")
-    )
-    const snapshot = await getDocs(q)
-    if (snapshot.empty) return null
-
-    const doc = snapshot.docs[0]
-    return { id: doc.id, ...doc.data() } as Subscription
+    return ls_read<Subscription>(`sub:${userId}`) ?? null
 }
 
 export async function updateSubscription(
     userId: string,
     updates: Partial<Subscription>
 ): Promise<void> {
-    const subscription = await getSubscription(userId)
-    if (!subscription?.id) throw new Error("No subscription found")
-
-    await updateDoc(doc(db, SUBSCRIPTIONS, subscription.id), {
-        ...updates,
-        updatedAt: Timestamp.now(),
-    })
+    const existing = await getSubscription(userId)
+    if (!existing) return
+    ls_write(`sub:${userId}`, { ...existing, ...updates, updatedAt: Timestamp.now() })
 }
 
 export async function upgradeSubscription(
@@ -189,19 +264,19 @@ export async function upgradeSubscription(
 }
 
 export async function cancelSubscription(userId: string): Promise<void> {
-    await updateSubscription(userId, {
-        cancelAtPeriodEnd: true,
-    })
+    await updateSubscription(userId, { cancelAtPeriodEnd: true })
 }
 
-// USAGE TRACKING
+// ── USAGE TRACKING ───────────────────────────────────────────────────────────
 
 async function initializeUsageRecord(
     userId: string,
     periodStart: Timestamp,
     periodEnd: Timestamp
 ): Promise<string> {
-    const usage: Omit<UsageRecord, "id"> = {
+    const id = makeId()
+    const usage: UsageRecord = {
+        id,
         userId,
         periodStart,
         periodEnd,
@@ -211,24 +286,16 @@ async function initializeUsageRecord(
         exportCount: 0,
         lastUpdated: Timestamp.now(),
     }
-
-    const docRef = await addDoc(collection(db, USAGE_RECORDS), usage)
-    return docRef.id
+    ls_write(`usage:${userId}`, usage)
+    return id
 }
 
 export async function getCurrentUsage(userId: string): Promise<UsageRecord | null> {
-    const now = Timestamp.now()
-    const q = query(
-        collection(db, USAGE_RECORDS),
-        where("userId", "==", userId),
-        where("periodEnd", ">", now),
-        orderBy("periodEnd", "desc")
-    )
-    const snapshot = await getDocs(q)
-    if (snapshot.empty) return null
-
-    const doc = snapshot.docs[0]
-    return { id: doc.id, ...doc.data() } as UsageRecord
+    const usage = ls_read<UsageRecord>(`usage:${userId}`)
+    if (!usage) return null
+    // Check period is still valid
+    if (usage.periodEnd.toDate() < new Date()) return null
+    return usage
 }
 
 export async function incrementUsage(
@@ -236,53 +303,29 @@ export async function incrementUsage(
     field: keyof Pick<UsageRecord, "papersProcessed" | "gapsExtracted" | "apiCalls" | "exportCount">,
     amount: number = 1
 ): Promise<void> {
-    const usage = await getCurrentUsage(userId)
-    if (!usage?.id) {
-        // Create new usage record if none exists
-        const subscription = await getSubscription(userId)
-        if (subscription) {
-            await initializeUsageRecord(
-                userId,
-                subscription.currentPeriodStart,
-                subscription.currentPeriodEnd
-            )
+    let usage = await getCurrentUsage(userId)
+    if (!usage) {
+        const sub = await getSubscription(userId)
+        if (sub) {
+            await initializeUsageRecord(userId, sub.currentPeriodStart, sub.currentPeriodEnd)
+            usage = await getCurrentUsage(userId)
         }
-        return
+        if (!usage) return
     }
-
-    await updateDoc(doc(db, USAGE_RECORDS, usage.id), {
-        [field]: increment(amount),
-        lastUpdated: Timestamp.now(),
-    })
+    const updated = { ...usage, [field]: (usage[field] as number) + amount, lastUpdated: Timestamp.now() }
+    ls_write(`usage:${userId}`, updated)
 }
 
 export async function logUsageEvent(
     userId: string,
     eventType: UsageEvent["eventType"],
-    resourceId?: string,
-    metadata?: Record<string, any>
+    _resourceId?: string,
+    _metadata?: Record<string, any>
 ): Promise<void> {
-    const event: Omit<UsageEvent, "id"> = {
-        userId,
-        eventType,
-        resourceId,
-        metadata,
-        createdAt: Timestamp.now(),
-    }
-
-    await addDoc(collection(db, USAGE_EVENTS), event)
-
-    // Increment appropriate counter
     switch (eventType) {
-        case "paper_crawl":
-            await incrementUsage(userId, "papersProcessed")
-            break
-        case "api_call":
-            await incrementUsage(userId, "apiCalls")
-            break
-        case "export":
-            await incrementUsage(userId, "exportCount")
-            break
+        case "paper_crawl": await incrementUsage(userId, "papersProcessed"); break
+        case "api_call": await incrementUsage(userId, "apiCalls"); break
+        case "export": await incrementUsage(userId, "exportCount"); break
     }
 }
 

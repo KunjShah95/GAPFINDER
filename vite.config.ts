@@ -11,6 +11,21 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
+  // Override Gemini/Firecrawl env vars so that client-side apiKey guards never block
+  // calls. The genai proxy shim in src/api/gemini.ts routes everything through the backend;
+  // the actual API keys are configured server-side only.
+  define: {
+    'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify('backend-proxy'),
+    'import.meta.env.VITE_FIRECRAWL_API_KEY': JSON.stringify('backend-proxy'),
+  },
   build: {
     rollupOptions: {
       output: {
@@ -22,8 +37,6 @@ export default defineConfig({
             if (id.includes('firebase')) return 'vendor-firebase';
             if (id.includes('framer-motion')) return 'vendor-framer';
             if (id.includes('lucide-react')) return 'vendor-icons';
-            if (id.includes('@google/genai')) return 'vendor-ai';
-            if (id.includes('firecrawl')) return 'vendor-crawler';
             return 'vendor';
           }
         },

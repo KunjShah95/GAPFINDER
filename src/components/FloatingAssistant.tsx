@@ -25,7 +25,6 @@ interface Message {
 interface PaperContext {
     title: string
     content: string
-    gaps?: string[]
     venue?: string
 }
 
@@ -56,7 +55,6 @@ export function FloatingAssistant() {
                     const paperData = response.data.map(p => ({
                         title: p.title,
                         content: p.abstract || "",
-                        gaps: p.research_gaps,
                         venue: p.venue
                     }))
                     setPapers(paperData)

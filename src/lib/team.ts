@@ -1,20 +1,45 @@
 // Team and Organization Service for GapMiner SaaS
 // Manages teams, workspaces, roles, and collaboration features
+// Storage: localStorage (no Firebase dependency)
 
-import {
-    collection,
-    doc,
-    addDoc,
-    getDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    orderBy,
-    Timestamp,
-} from "firebase/firestore"
-import { db } from "./firebase"
+import { Timestamp } from "./subscription"
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+const PREFIX = 'gapminer:team:'
+
+function ls_read<T>(key: string): T | null {
+    try {
+        const raw = localStorage.getItem(PREFIX + key)
+        if (!raw) return null
+        const parsed = JSON.parse(raw)
+        const revive = (obj: any): any => {
+            if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+                if ('seconds' in obj && 'nanoseconds' in obj && !('toDate' in obj)) {
+                    return new Timestamp(obj.seconds, obj.nanoseconds)
+                }
+                for (const k of Object.keys(obj)) obj[k] = revive(obj[k])
+            } else if (Array.isArray(obj)) {
+                return obj.map(revive)
+            }
+            return obj
+        }
+        return revive(parsed) as T
+    } catch { return null }
+}
+
+function ls_write(key: string, data: any): void {
+    try { localStorage.setItem(PREFIX + key, JSON.stringify(data)) } catch { /* quota */ }
+}
+
+function makeId(): string {
+    return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+function generateToken(): string {
+    return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+}
 
 // ============================================
 // TYPES
@@ -77,15 +102,37 @@ export interface AuditLogEntry {
     createdAt: Timestamp
 }
 
-// Collection references
-const TEAMS = "teams"
-const TEAM_MEMBERS = "teamMembers"
-const TEAM_INVITES = "teamInvites"
-const AUDIT_LOGS = "auditLogs"
-
 // ============================================
 // TEAM MANAGEMENT
 // ============================================
+
+function getTeams(): Team[] {
+    return ls_read<Team[]>('teams') ?? []
+}
+
+function saveTeams(teams: Team[]): void {
+    ls_write('teams', teams)
+}
+
+function getMembers(): TeamMember[] {
+    return ls_read<TeamMember[]>('members') ?? []
+}
+
+function saveMembers(members: TeamMember[]): void {
+    ls_write('members', members)
+}
+
+function getInvites(): TeamInvite[] {
+    return ls_read<TeamInvite[]>('invites') ?? []
+}
+
+function saveInvites(invites: TeamInvite[]): void {
+    ls_write('invites', invites)
+}
+
+function getAuditLog(): AuditLogEntry[] {
+    return ls_read<AuditLogEntry[]>('audit') ?? []
+}
 
 export async function createTeam(
     name: string,
@@ -94,101 +141,43 @@ export async function createTeam(
     ownerName: string
 ): Promise<string> {
     const now = Timestamp.now()
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50)
-
-    const team: Omit<Team, "id"> = {
-        name,
-        slug,
-        ownerId,
-        settings: {
-            allowMemberInvites: false,
-            defaultMemberRole: "member",
-            sharedCollections: true,
-            requireApproval: false,
-        },
-        createdAt: now,
-        updatedAt: now,
+    const id = makeId()
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)
+    const team: Team = {
+        id, name, slug, ownerId,
+        settings: { allowMemberInvites: false, defaultMemberRole: 'member', sharedCollections: true, requireApproval: false },
+        createdAt: now, updatedAt: now,
     }
-
-    const teamRef = await addDoc(collection(db, TEAMS), team)
-
-    // Add owner as first member
-    await addTeamMember(teamRef.id, ownerId, ownerEmail, ownerName, "owner", ownerId)
-
-    // Log the action
-    await logAuditEntry(teamRef.id, ownerId, "team.created", "team", teamRef.id)
-
-    return teamRef.id
+    saveTeams([...getTeams(), team])
+    await addTeamMember(id, ownerId, ownerEmail, ownerName, 'owner', ownerId)
+    await logAuditEntry(id, ownerId, 'team.created', 'team', id)
+    return id
 }
 
 export async function getTeam(teamId: string): Promise<Team | null> {
-    const docRef = doc(db, TEAMS, teamId)
-    const docSnap = await getDoc(docRef)
-    if (!docSnap.exists()) return null
-    return { id: docSnap.id, ...docSnap.data() } as Team
+    return getTeams().find(t => t.id === teamId) ?? null
 }
 
 export async function getUserTeams(userId: string): Promise<Team[]> {
-    // Get all team memberships for user
-    const memberQuery = query(
-        collection(db, TEAM_MEMBERS),
-        where("userId", "==", userId)
-    )
-    const memberSnapshot = await getDocs(memberQuery)
-
-    if (memberSnapshot.empty) return []
-
-    // Get all teams
-    const teamIds = memberSnapshot.docs.map(doc => doc.data().teamId)
-    const teams: Team[] = []
-
-    for (const teamId of teamIds) {
-        const team = await getTeam(teamId)
-        if (team) teams.push(team)
-    }
-
-    return teams
+    const userTeamIds = getMembers().filter(m => m.userId === userId).map(m => m.teamId)
+    return getTeams().filter(t => userTeamIds.includes(t.id!))
 }
 
 export async function updateTeam(
     teamId: string,
-    updates: Partial<Pick<Team, "name" | "description" | "settings">>,
+    updates: Partial<Pick<Team, 'name' | 'description' | 'settings'>>,
     userId: string
 ): Promise<void> {
-    await updateDoc(doc(db, TEAMS, teamId), {
-        ...updates,
-        updatedAt: Timestamp.now(),
-    })
-
-    await logAuditEntry(teamId, userId, "team.updated", "team", teamId, updates)
+    const teams = getTeams().map(t => t.id === teamId ? { ...t, ...updates, updatedAt: Timestamp.now() } : t)
+    saveTeams(teams)
+    await logAuditEntry(teamId, userId, 'team.updated', 'team', teamId, updates)
 }
 
 export async function deleteTeam(teamId: string, userId: string): Promise<void> {
-    // Delete all members
-    const membersQuery = query(
-        collection(db, TEAM_MEMBERS),
-        where("teamId", "==", teamId)
-    )
-    const membersSnapshot = await getDocs(membersQuery)
-    for (const memberDoc of membersSnapshot.docs) {
-        await deleteDoc(memberDoc.ref)
-    }
-
-    // Delete all invites
-    const invitesQuery = query(
-        collection(db, TEAM_INVITES),
-        where("teamId", "==", teamId)
-    )
-    const invitesSnapshot = await getDocs(invitesQuery)
-    for (const inviteDoc of invitesSnapshot.docs) {
-        await deleteDoc(inviteDoc.ref)
-    }
-
-    // Log before deleting
-    await logAuditEntry(teamId, userId, "team.deleted", "team", teamId)
-
-    // Delete the team
-    await deleteDoc(doc(db, TEAMS, teamId))
+    await logAuditEntry(teamId, userId, 'team.deleted', 'team', teamId)
+    saveTeams(getTeams().filter(t => t.id !== teamId))
+    saveMembers(getMembers().filter(m => m.teamId !== teamId))
+    saveInvites(getInvites().filter(i => i.teamId !== teamId))
 }
 
 // ============================================
@@ -204,46 +193,19 @@ export async function addTeamMember(
     invitedBy: string
 ): Promise<string> {
     const now = Timestamp.now()
-
-    const member: Omit<TeamMember, "id"> = {
-        teamId,
-        userId,
-        email,
-        name,
-        role,
-        invitedBy,
-        joinedAt: now,
-        lastActiveAt: now,
-    }
-
-    const docRef = await addDoc(collection(db, TEAM_MEMBERS), member)
-    await logAuditEntry(teamId, invitedBy, "member.added", "member", userId, { role })
-
-    return docRef.id
+    const id = makeId()
+    const member: TeamMember = { id, teamId, userId, email, name, role, invitedBy, joinedAt: now, lastActiveAt: now }
+    saveMembers([...getMembers(), member])
+    await logAuditEntry(teamId, invitedBy, 'member.added', 'member', userId, { role })
+    return id
 }
 
 export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
-    const q = query(
-        collection(db, TEAM_MEMBERS),
-        where("teamId", "==", teamId),
-        orderBy("joinedAt", "asc")
-    )
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamMember))
+    return getMembers().filter(m => m.teamId === teamId)
 }
 
-export async function getTeamMember(
-    teamId: string,
-    userId: string
-): Promise<TeamMember | null> {
-    const q = query(
-        collection(db, TEAM_MEMBERS),
-        where("teamId", "==", teamId),
-        where("userId", "==", userId)
-    )
-    const snapshot = await getDocs(q)
-    if (snapshot.empty) return null
-    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as TeamMember
+export async function getTeamMember(teamId: string, userId: string): Promise<TeamMember | null> {
+    return getMembers().find(m => m.teamId === teamId && m.userId === userId) ?? null
 }
 
 export async function updateMemberRole(
@@ -252,9 +214,8 @@ export async function updateMemberRole(
     newRole: TeamRole,
     updatedBy: string
 ): Promise<void> {
-    const memberRef = doc(db, TEAM_MEMBERS, memberId)
-    await updateDoc(memberRef, { role: newRole })
-    await logAuditEntry(teamId, updatedBy, "member.role_changed", "member", memberId, { newRole })
+    saveMembers(getMembers().map(m => m.id === memberId ? { ...m, role: newRole } : m))
+    await logAuditEntry(teamId, updatedBy, 'member.role_changed', 'member', memberId, { newRole })
 }
 
 export async function removeTeamMember(
@@ -262,65 +223,43 @@ export async function removeTeamMember(
     memberId: string,
     removedBy: string
 ): Promise<void> {
-    await deleteDoc(doc(db, TEAM_MEMBERS, memberId))
-    await logAuditEntry(teamId, removedBy, "member.removed", "member", memberId)
+    saveMembers(getMembers().filter(m => m.id !== memberId))
+    await logAuditEntry(teamId, removedBy, 'member.removed', 'member', memberId)
 }
 
 // ============================================
 // TEAM INVITES
 // ============================================
 
-function generateToken(): string {
-    return Array.from(crypto.getRandomValues(new Uint8Array(32)))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("")
-}
-
 export async function createInvite(
     teamId: string,
     email: string,
     role: TeamRole,
     invitedBy: string,
-    expirationDays: number = 7
+    expirationDays = 7
 ): Promise<TeamInvite> {
     const now = Timestamp.now()
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + expirationDays)
-
-    const invite: Omit<TeamInvite, "id"> = {
-        teamId,
-        email: email.toLowerCase(),
-        role,
-        invitedBy,
+    const invite: TeamInvite = {
+        id: makeId(), teamId,
+        email: email.toLowerCase(), role, invitedBy,
         token: generateToken(),
         expiresAt: Timestamp.fromDate(expiresAt),
-        status: "pending",
-        createdAt: now,
+        status: 'pending', createdAt: now,
     }
-
-    const docRef = await addDoc(collection(db, TEAM_INVITES), invite)
-    await logAuditEntry(teamId, invitedBy, "invite.created", "member", email, { role })
-
-    return { id: docRef.id, ...invite }
+    saveInvites([...getInvites(), invite])
+    await logAuditEntry(teamId, invitedBy, 'invite.created', 'member', email, { role })
+    return invite
 }
 
 export async function getInviteByToken(token: string): Promise<TeamInvite | null> {
-    const q = query(
-        collection(db, TEAM_INVITES),
-        where("token", "==", token),
-        where("status", "==", "pending")
-    )
-    const snapshot = await getDocs(q)
-    if (snapshot.empty) return null
-
-    const invite = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as TeamInvite
-
-    // Check if expired
+    const invite = getInvites().find(i => i.token === token && i.status === 'pending')
+    if (!invite) return null
     if (invite.expiresAt.toDate() < new Date()) {
-        await updateDoc(snapshot.docs[0].ref, { status: "expired" })
+        saveInvites(getInvites().map(i => i.token === token ? { ...i, status: 'expired' } : i))
         return null
     }
-
     return invite
 }
 
@@ -331,32 +270,14 @@ export async function acceptInvite(
 ): Promise<{ teamId: string } | null> {
     const invite = await getInviteByToken(token)
     if (!invite) return null
-
-    // Add user as team member
-    await addTeamMember(
-        invite.teamId,
-        userId,
-        invite.email,
-        userName,
-        invite.role,
-        invite.invitedBy
-    )
-
-    // Mark invite as accepted
-    await updateDoc(doc(db, TEAM_INVITES, invite.id!), { status: "accepted" })
-
+    await addTeamMember(invite.teamId, userId, invite.email, userName, invite.role, invite.invitedBy)
+    saveInvites(getInvites().map(i => i.id === invite.id ? { ...i, status: 'accepted' } : i))
     return { teamId: invite.teamId }
 }
 
 export async function getPendingInvites(teamId: string): Promise<TeamInvite[]> {
-    const q = query(
-        collection(db, TEAM_INVITES),
-        where("teamId", "==", teamId),
-        where("status", "==", "pending"),
-        orderBy("createdAt", "desc")
-    )
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamInvite))
+    return getInvites().filter(i => i.teamId === teamId && i.status === 'pending')
+        .sort((a, b) => b.createdAt.seconds - a.createdAt.seconds)
 }
 
 export async function revokeInvite(
@@ -364,8 +285,8 @@ export async function revokeInvite(
     teamId: string,
     revokedBy: string
 ): Promise<void> {
-    await updateDoc(doc(db, TEAM_INVITES, inviteId), { status: "revoked" })
-    await logAuditEntry(teamId, revokedBy, "invite.revoked", "member", inviteId)
+    saveInvites(getInvites().map(i => i.id === inviteId ? { ...i, status: 'revoked' } : i))
+    await logAuditEntry(teamId, revokedBy, 'invite.revoked', 'member', inviteId)
 }
 
 // ============================================
@@ -446,36 +367,26 @@ export async function logAuditEntry(
     teamId: string,
     userId: string,
     action: string,
-    resourceType: AuditLogEntry["resourceType"],
+    resourceType: AuditLogEntry['resourceType'],
     resourceId?: string,
     metadata?: Record<string, any>
 ): Promise<void> {
-    const entry: Omit<AuditLogEntry, "id"> = {
-        teamId,
-        userId,
-        action,
-        resourceType,
-        resourceId,
-        metadata,
+    const entry: AuditLogEntry = {
+        id: makeId(), teamId, userId, action, resourceType, resourceId, metadata,
         createdAt: Timestamp.now(),
     }
-
-    await addDoc(collection(db, AUDIT_LOGS), entry)
+    const log = getAuditLog()
+    log.unshift(entry)
+    ls_write('audit', log.slice(0, 500)) // cap at 500 entries
 }
 
 export async function getAuditLogs(
     teamId: string,
-    limitCount: number = 50
+    limitCount = 50
 ): Promise<AuditLogEntry[]> {
-    const q = query(
-        collection(db, AUDIT_LOGS),
-        where("teamId", "==", teamId),
-        orderBy("createdAt", "desc")
-    )
-    const snapshot = await getDocs(q)
-    return snapshot.docs
+    return getAuditLog()
+        .filter(e => e.teamId === teamId)
         .slice(0, limitCount)
-        .map(doc => ({ id: doc.id, ...doc.data() } as AuditLogEntry))
 }
 
 // ============================================

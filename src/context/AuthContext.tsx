@@ -1,14 +1,22 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import type { ReactNode } from "react"
-import * as authApi from "@/auth/api"
+import { authApi, getAccessToken, type UserProfile } from "@/lib/api-client"
 
 interface User {
   id: string
   email: string
   name: string
+  role: string
+  tier: string
   avatar?: string
-  created_at?: Date
-  updated_at?: Date
+  xp?: {
+    totalXp: number
+    level: number
+    currentStreak: number
+    papersAnalyzed: number
+    gapsFound: number
+  }
+  createdAt?: string
 }
 
 interface AuthContextType {
@@ -28,6 +36,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function mapUserProfile(profile: UserProfile): User {
+  return {
+    id: profile.id,
+    email: profile.email,
+    name: profile.name,
+    role: profile.role,
+    tier: profile.tier,
+    avatar: profile.avatar,
+    xp: profile.xp,
+    createdAt: profile.createdAt,
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -35,11 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login')
 
   const loadUser = useCallback(async () => {
+    // Only try to load user if we have a token
+    const token = getAccessToken()
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const response = await authApi.getCurrentUser()
-      if (response.success && response.data) {
-        setUser(response.data)
-      }
+      const profile = await authApi.getProfile()
+      setUser(mapUserProfile(profile))
     } catch {
       setUser(null)
     } finally {
@@ -54,13 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
     try {
-      const response = await authApi.login(email, password)
-      if (response.success && response.data) {
-        setUser(response.data.user)
-        return true
-      }
-      return false
-    } catch {
+      const profile = await authApi.login(email, password)
+      setUser(mapUserProfile(profile))
+      setShowAuthModal(false)
+      return true
+    } catch (error) {
+      console.error('[Auth] Login failed:', error)
       return false
     } finally {
       setIsLoading(false)
@@ -70,48 +95,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
     try {
-      const response = await authApi.register(email, password, name)
-      if (response.success && response.data) {
-        setUser(response.data.user)
-        return true
-      }
-      return false
-    } catch {
+      const profile = await authApi.register(email, password, name)
+      setUser(mapUserProfile(profile))
+      setShowAuthModal(false)
+      return true
+    } catch (error) {
+      console.error('[Auth] Register failed:', error)
       return false
     } finally {
       setIsLoading(false)
     }
   }
 
-  const logout = async () => {
-    await authApi.logout()
+  const logout = () => {
+    authApi.logout()
     setUser(null)
   }
 
   const loginWithGoogle = async (): Promise<boolean> => {
-    setIsLoading(true)
-    try {
-      const response = await authApi.loginWithGoogle()
-      if (response.success && response.data) {
-        setUser(response.data.user)
-        return true
-      }
-      return false
-    } catch {
-      return false
-    } finally {
-      setIsLoading(false)
-    }
+    // Google OAuth would be wired through the backend
+    // For now, show a message that it's coming soon
+    console.warn('[Auth] Google login not yet integrated with backend')
+    return false
   }
 
   const updateProfile = async (updates: { name?: string; avatar?: string }): Promise<boolean> => {
     try {
-      const response = await authApi.updateProfile(updates)
-      if (response.success && response.data) {
-        setUser(response.data)
-        return true
-      }
-      return false
+      await authApi.updateProfile(updates)
+      // Refresh user data
+      const profile = await authApi.getProfile()
+      setUser(mapUserProfile(profile))
+      return true
     } catch {
       return false
     }

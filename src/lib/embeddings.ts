@@ -1,5 +1,6 @@
 // Embeddings and Vector Search Service
 // Provides semantic similarity search using embeddings
+import { apiRequest } from '@/lib/api-client';
 
 // ============================================================================
 // TYPES
@@ -51,34 +52,16 @@ class EmbeddingService {
         }
 
         try {
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-            if (!apiKey) {
-                console.warn('[Embeddings] No API key, using fallback');
-                return this.generateFallbackEmbedding(text);
-            }
-
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:embedContent`, {
+            const result = await apiRequest<{ values: number[]; dimensions: number }>('/ai/embeddings', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    content: { parts: [{ text: this.truncateText(text, 3000) }] },
-                    task_type: 'SEMANTIC_SIMILARITY',
-                }),
+                body: { text: this.truncateText(text, 3000), model: this.config.model },
+                timeout: 30_000,
             });
-
-            if (!response.ok) {
-                throw new Error(`Embedding API failed: ${response.status}`);
-            }
-
-            const result = await response.json();
-            const values = result.embedding?.values || [];
+            const values = result.values || [];
 
             this.cache.set(cacheKey, { embedding: values, timestamp: Date.now() });
 
-            return { dimensions: values.length, values };
+            return { dimensions: values.length || result.dimensions, values };
         } catch (error) {
             console.error('[Embeddings] Generation failed, using fallback:', error);
             return this.generateFallbackEmbedding(text);

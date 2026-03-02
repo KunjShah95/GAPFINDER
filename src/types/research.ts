@@ -228,3 +228,190 @@ export function validatePaperUrls(urls: string[]): { valid: string[]; invalid: s
 
     return { valid, invalid };
 }
+
+// ============================================================================
+// Gap Prediction Model Types (#19)
+// ============================================================================
+
+export const PredictionModelEnum = z.enum(["lstm", "transformer", "xgboost", "random_forest"]);
+export type PredictionModel = z.infer<typeof PredictionModelEnum>;
+
+export const PredictionTimeframeEnum = z.enum(["1_year", "2_years", "5_years", "10_years"]);
+export type PredictionTimeframe = z.infer<typeof PredictionTimeframeEnum>;
+
+export const GapPredictionSchema = z.object({
+    predictedGap: z.string(),
+    confidence: z.number().min(0).max(1),
+    timeframe: PredictionTimeframeEnum,
+    supportingEvidence: z.array(z.string()),
+    citationTrends: z.array(z.string()),
+    relatedWork: z.array(z.string()),
+    riskFactors: z.array(z.string())
+});
+export type GapPrediction = z.infer<typeof GapPredictionSchema>;
+
+export const PredictionModelConfigSchema = z.object({
+    modelType: PredictionModelEnum,
+    historicalDataYears: z.number().min(1).max(20),
+    includeCitationTrajectories: z.boolean(),
+    minCitations: z.number().optional(),
+    topics: z.array(z.string()).optional()
+});
+export type PredictionModelConfig = z.infer<typeof PredictionModelConfigSchema>;
+
+// ============================================================================
+// Citation Types for Formatting Upgrade
+// ============================================================================
+
+export const CitationStyleEnum = z.enum(["apa", "mla", "chicago", "ieee", "bibtex", "nature", "cell"]);
+export type CitationStyle = z.infer<typeof CitationStyleEnum>;
+
+export const CitationSchema = z.object({
+    id: z.string(),
+    authors: z.array(z.string()),
+    title: z.string(),
+    venue: z.string().optional(),
+    year: z.number(),
+    url: z.string().optional(),
+    doi: z.string().optional(),
+    volume: z.string().optional(),
+    issue: z.string().optional(),
+    pages: z.string().optional(),
+    publisher: z.string().optional()
+});
+export type Citation = z.infer<typeof CitationSchema>;
+
+export const FormattedCitationSchema = z.object({
+    citation: CitationSchema,
+    formattedText: z.string(),
+    style: CitationStyleEnum
+});
+export type FormattedCitation = z.infer<typeof FormattedCitationSchema>;
+
+// ============================================================================
+// Research Matching Types (#21)
+// ============================================================================
+
+export const ResearcherProfileSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    institution: z.string().optional(),
+    email: z.string().optional(),
+    publicationHistory: z.array(z.string()),
+    expertise: z.array(z.string()),
+    hIndex: z.number().optional(),
+    citationCount: z.number().optional(),
+    recentPapers: z.array(z.string()).optional()
+});
+export type ResearcherProfile = z.infer<typeof ResearcherProfileSchema>;
+
+export const ResearchMatchSchema = z.object({
+    researcher: ResearcherProfileSchema,
+    gap: GapSchema,
+    matchScore: z.number().min(0).max(1),
+    relevanceReason: z.string(),
+    collaborationPotential: z.enum(["high", "medium", "low"])
+});
+export type ResearchMatch = z.infer<typeof ResearchMatchSchema>;
+
+// ============================================================================
+// Grant Proposal Types (#22)
+// ============================================================================
+
+export const GrantAgencyEnum = z.enum(["nsf", "nih", "erc", "darpa", "industry"]);
+export type GrantAgency = z.infer<typeof GrantAgencyEnum>;
+
+export const GrantProposalSchema = z.object({
+    title: z.string(),
+    abstract: z.string(),
+    specificAims: z.array(z.string()),
+    significance: z.string(),
+    innovation: z.string(),
+    approach: z.string(),
+    timeline: z.string(),
+    budget: z.string().optional(),
+    teamQualifications: z.string().optional(),
+    agency: GrantAgencyEnum
+});
+export type GrantProposal = z.infer<typeof GrantProposalSchema>;
+
+// ============================================================================
+// Multi-Modal Analysis Types (#23)
+// ============================================================================
+
+export const FigureAnalysisSchema = z.object({
+    figureId: z.string(),
+    description: z.string(),
+    keyFindings: z.array(z.string()),
+    limitations: z.array(z.string()),
+    extractedData: z.record(z.string(), z.any()).optional()
+});
+export type FigureAnalysis = z.infer<typeof FigureAnalysisSchema>;
+
+export const TableAnalysisSchema = z.object({
+    tableId: z.string(),
+    description: z.string(),
+    columns: z.array(z.string()),
+    rows: z.array(z.string()),
+    keyInsights: z.array(z.string()),
+    dataQuality: z.enum(["excellent", "good", "fair", "poor"])
+});
+export type TableAnalysis = z.infer<typeof TableAnalysisSchema>;
+
+export const EquationAnalysisSchema = z.object({
+    equationId: z.string(),
+    latex: z.string(),
+    description: z.string(),
+    variables: z.record(z.string(), z.string()),
+    limitations: z.array(z.string()).optional()
+});
+export type EquationAnalysis = z.infer<typeof EquationAnalysisSchema>;
+
+export const MultiModalAnalysisSchema = z.object({
+    figures: z.array(FigureAnalysisSchema),
+    tables: z.array(TableAnalysisSchema),
+    equations: z.array(EquationAnalysisSchema),
+    summary: z.string()
+});
+export type MultiModalAnalysis = z.infer<typeof MultiModalAnalysisSchema>;
+
+// ============================================================================
+// Agentic Research Assistant Types (#24)
+// ============================================================================
+
+export const AgentActionEnum = z.enum(["search", "crawl", "analyze", "compare", "suggest", "iterate", "synthesize"]);
+export type AgentAction = z.infer<typeof AgentActionEnum>;
+
+export const AgentStateSchema = z.object({
+    currentTopic: z.string(),
+    completedActions: z.array(z.object({
+        action: AgentActionEnum,
+        result: z.string(),
+        timestamp: z.string()
+    })),
+    gatheredPapers: z.array(z.string()),
+    identifiedGaps: z.array(z.string()),
+    recommendations: z.array(z.string()),
+    isComplete: z.boolean()
+});
+export type AgentState = z.infer<typeof AgentStateSchema>;
+
+export const AgentTaskSchema = z.object({
+    id: z.string(),
+    topic: z.string(),
+    maxIterations: z.number().min(1).max(20),
+    includeCrawl: z.boolean(),
+    includeAnalysis: z.boolean(),
+    includeComparison: z.boolean()
+});
+export type AgentTask = z.infer<typeof AgentTaskSchema>;
+
+export const AgentResultSchema = z.object({
+    taskId: z.string(),
+    finalReport: z.string(),
+    papersFound: z.array(z.string()),
+    gapsIdentified: z.array(z.string()),
+    suggestedNextSteps: z.array(z.string()),
+    iterations: z.number()
+});
+export type AgentResult = z.infer<typeof AgentResultSchema>;

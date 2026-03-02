@@ -1,5 +1,6 @@
 import { db } from './firebase';
 import { collection, addDoc, getDoc, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { apiRequest } from '@/lib/api-client';
 
 export interface ChatMessage {
     id: string;
@@ -339,14 +340,13 @@ Provide helpful, accurate responses based on the available research.`;
 }
 
 async function callLLM(prompt: string): Promise<string> {
-    const { GoogleGenerativeAI } = await import('@google/genai');
-    const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    
     try {
-        const model = gemini.getGenerativeModel({ model: 'gemini-pro' });
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        return response.text() || 'I apologize, but I was unable to generate a response.';
+        const result = await apiRequest<{ text: string }>('/ai/prompt', {
+            method: 'POST',
+            body: { prompt, model: 'gemini-2.0-flash' },
+            timeout: 120_000,
+        });
+        return result.text || 'I apologize, but I was unable to generate a response.';
     } catch (error) {
         console.error('LLM call failed:', error);
         return 'I encountered an issue while processing your request. Please try again.';
