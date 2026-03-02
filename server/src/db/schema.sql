@@ -318,6 +318,8 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
     notify_on_gaps BOOLEAN DEFAULT TRUE,
     notify_on_papers BOOLEAN DEFAULT TRUE,
     notify_on_community BOOLEAN DEFAULT TRUE,
+    weekly_digest BOOLEAN DEFAULT TRUE,
+    marketing_emails BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 

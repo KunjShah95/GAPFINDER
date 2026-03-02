@@ -1,10 +1,12 @@
 import { motion } from "framer-motion"
-import { useState } from "react"
-import { Settings, Bell, Moon, Shield, CreditCard, User, Palette, Globe, Zap, TrendingUp, FileText, MessageSquare, GitBranch, ArrowRight, CheckCircle2, AlertCircle, XCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useMutation } from "@tanstack/react-query"
+import { Settings, Bell, Moon, Shield, CreditCard, User, Palette, Globe, Zap, TrendingUp, FileText, MessageSquare, GitBranch, ArrowRight, CheckCircle2, AlertCircle, XCircle, Loader2, Eye, EyeOff, Sun, Monitor } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/context/AuthContext"
 import { useSubscription } from "@/context/SubscriptionContext"
 import { TIER_LIMITS } from "@/lib/subscription"
+import { getAccessToken } from "@/lib/api-client"
 
 const sections = [
   { id: "profile", name: "Profile", icon: User },
@@ -231,11 +233,68 @@ function BillingPanel() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+type Theme = "light" | "dark" | "system"
+
+function applyTheme(theme: Theme) {
+  const root = document.documentElement
+  if (theme === "dark") {
+    root.classList.add("dark")
+  } else if (theme === "light") {
+    root.classList.remove("dark")
+  } else {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    root.classList.toggle("dark", prefersDark)
+  }
+}
+
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile")
   const { user, updateProfile } = useAuth()
   const [profileName, setProfileName] = useState(user?.name ?? "")
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+
+  // Password change
+  const [currentPw, setCurrentPw] = useState("")
+  const [newPw, setNewPw] = useState("")
+  const [confirmPw, setConfirmPw] = useState("")
+  const [showPw, setShowPw] = useState(false)
+  const [pwError, setPwError] = useState("")
+
+  // Theme
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("gapminer_theme") as Theme) ?? "system")
+
+  useEffect(() => { applyTheme(theme); localStorage.setItem("gapminer_theme", theme) }, [theme])
+
+  const changePwMutation = useMutation({
+    mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
+      const token = getAccessToken()
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as any).error || "Password change failed")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      setCurrentPw("")
+      setNewPw("")
+      setConfirmPw("")
+      setPwError("")
+    },
+    onError: (e: Error) => setPwError(e.message),
+  })
+
+  const handleChangePw = () => {
+    setPwError("")
+    if (!currentPw) { setPwError("Current password is required"); return }
+    if (newPw.length < 8) { setPwError("New password must be at least 8 characters"); return }
+    if (newPw !== confirmPw) { setPwError("Passwords do not match"); return }
+    changePwMutation.mutate({ currentPassword: currentPw, newPassword: newPw })
+  }
 
   const handleSaveProfile = async () => {
     setSaveState("saving")
@@ -311,7 +370,91 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
-              {activeSection !== "profile" && (
+              {activeSection === "security" && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-2">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPw ? "text" : "password"}
+                        value={currentPw}
+                        onChange={e => setCurrentPw(e.target.value)}
+                        className="w-full px-4 py-3 pr-10 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500/50"
+                        placeholder="Enter current password"
+                      />
+                      <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
+                        {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-2">New Password</label>
+                    <input
+                      type={showPw ? "text" : "password"}
+                      value={newPw}
+                      onChange={e => setNewPw(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500/50"
+                      placeholder="Min. 8 characters"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-2">Confirm New Password</label>
+                    <input
+                      type={showPw ? "text" : "password"}
+                      value={confirmPw}
+                      onChange={e => setConfirmPw(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-violet-500/50"
+                      placeholder="Repeat new password"
+                    />
+                  </div>
+                  {pwError && (
+                    <div className="flex items-center gap-2 text-red-400 text-sm">
+                      <AlertCircle className="w-4 h-4" />{pwError}
+                    </div>
+                  )}
+                  {changePwMutation.isSuccess && (
+                    <div className="flex items-center gap-2 text-green-400 text-sm">
+                      <CheckCircle2 className="w-4 h-4" />Password changed successfully!
+                    </div>
+                  )}
+                  <button
+                    onClick={handleChangePw}
+                    disabled={changePwMutation.isPending}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium disabled:opacity-50"
+                  >
+                    {changePwMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Change Password
+                  </button>
+                </div>
+              )}
+              {activeSection === "appearance" && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-medium mb-3">Theme</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      {(["light", "dark", "system"] as Theme[]).map(t => {
+                        const icons = { light: Sun, dark: Moon, system: Monitor }
+                        const Icon = icons[t]
+                        return (
+                          <button
+                            key={t}
+                            onClick={() => setTheme(t)}
+                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all capitalize ${
+                              theme === t
+                                ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]"
+                                : "border-white/10 bg-white/5 hover:bg-white/10"
+                            }`}
+                          >
+                            <Icon className="w-6 h-6" />
+                            <span className="text-sm font-medium">{t}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {activeSection !== "profile" && activeSection !== "security" && activeSection !== "appearance" && (
                 <p className="text-[rgb(var(--muted-foreground))] text-sm">
                   {sections.find(s => s.id === activeSection)?.name} configuration coming soon.
                 </p>

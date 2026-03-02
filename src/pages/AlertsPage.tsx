@@ -1,773 +1,345 @@
-import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { motion } from "framer-motion"
-import { useNavigate } from "react-router-dom"
+﻿import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getAccessToken } from "@/lib/api-client"
-import { 
-    Bell, 
-    Plus, 
-    Trash2, 
-    Play, 
-    Settings,
-    Search,
-    ExternalLink,
-    Check,
-    CheckCheck,
-    AlertTriangle,
-    Calendar,
-    Mail,
-    Smartphone,
-    Newspaper,
-    RefreshCw,
-    Building2,
-    ChevronLeft,
-    ChevronRight,
-    Lock
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  Bell,
+  Plus,
+  Search,
+  Loader2,
+  X,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  BellOff,
+  Calendar,
+  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useAuth } from "@/context/AuthContext"
-import { useAlerts, useNotifications, useMarkNotificationRead } from "@/hooks/useQueries"
-import { queryClient } from "@/lib/query-client"
-import { AlertCardSkeleton, NotificationSkeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
-const PUBLISHER_COLORS: Record<string, string> = {
-    arxiv:        'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-300',
-    pubmed:       'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300',
-    crossref:     'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-300',
-    biorxiv:      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-300',
-    nature:       'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-300',
-    plos:         'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 border-teal-300',
-    ieee:         'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-300',
-    springer:     'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-300',
+interface Alert {
+  id: string
+  query: string
+  frequency: "daily" | "weekly" | "monthly"
+  sources: string[]
+  match_type: string
+  is_active: boolean
+  notification_count: number
+  unread_count: number
+  last_triggered_at?: string
+  created_at: string
 }
 
+const FREQUENCIES = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+] as const
+
+const MATCH_TYPES = [
+  { value: "keyword", label: "Keyword" },
+  { value: "author", label: "Author" },
+  { value: "venue", label: "Venue" },
+] as const
+
 export default function AlertsPage() {
-    const { user } = useAuth()
-    const navigate = useNavigate()
-    const [showCreateForm, setShowCreateForm] = useState(false)
-    const [newAlert, setNewAlert] = useState({
-        query: "",
-        frequency: "weekly",
-        sources: ["arxiv"],
-        matchType: "keyword"
-    })
-    const [preferences, setPreferences] = useState({
-        emailAlerts: true,
-        pushAlerts: true,
-        inAppAlerts: true,
-        alertFrequency: "daily",
-        notifyOnGaps: true,
-        notifyOnPapers: true,
-        notifyOnCommunity: true
-    })
+  const queryClient = useQueryClient()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showCreate, setShowCreate] = useState(false)
+  const [alertQuery, setAlertQuery] = useState("")
+  const [frequency, setFrequency] = useState<"daily" | "weekly" | "monthly">("weekly")
+  const [matchType, setMatchType] = useState<"keyword" | "author" | "venue">("keyword")
+  const [sources, setSources] = useState({ arxiv: true, semantic_scholar: false })
+  const [formError, setFormError] = useState("")
 
-    // Latest Papers state
-    const [selectedPublishers, setSelectedPublishers] = useState<string[]>([])
-    const [latestSearch, setLatestSearch] = useState("")
-    const [latestSearchInput, setLatestSearchInput] = useState("")
-    const [latestPage, setLatestPage] = useState(1)
-    const [isRefreshing, setIsRefreshing] = useState(false)
+  const { data, isLoading, error } = useQuery<{ alerts: Alert[] }>({
+    queryKey: ["alerts"],
+    queryFn: async () => {
+      const token = getAccessToken()
+      const res = await fetch("/api/alerts", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error("Failed to fetch alerts")
+      return res.json()
+    },
+    staleTime: 2 * 60 * 1000,
+  })
 
-    const togglePublisher = (id: string) => {
-        setSelectedPublishers(prev =>
-            prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-        )
-        setLatestPage(1)
-    }
-
-    const { data: publishersData } = useQuery({
-        queryKey: ['latest-papers-publishers'],
-        queryFn: async () => {
-            const token = getAccessToken()
-            const res = await fetch('/api/latest-papers/publishers', {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-            })
-            if (!res.ok) throw new Error('Failed to fetch publishers')
-            return res.json() as Promise<{
-                publishers: { id: string; name: string; description: string; paperCount: number; allowedForTier: boolean }[]
-                lastRun: { status: string; finished_at: string; papers_fetched: number } | null
-            }>
+  const createMutation = useMutation({
+    mutationFn: async (body: { query: string; frequency: string; sources: string[]; matchType: string }) => {
+      const token = getAccessToken()
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        staleTime: 5 * 60 * 1000,
-    })
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as any).error || "Failed to create alert")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["alerts"] })
+      setShowCreate(false)
+      setAlertQuery("")
+      setFrequency("weekly")
+      setMatchType("keyword")
+      setSources({ arxiv: true, semantic_scholar: false })
+      setFormError("")
+    },
+    onError: (err: Error) => setFormError(err.message),
+  })
 
-    const publisherParam = selectedPublishers.length > 0 ? selectedPublishers.join(',') : ''
-    const { data: latestPapersData, isLoading: latestLoading, refetch: refetchLatest } = useQuery({
-        queryKey: ['latest-papers', publisherParam, latestSearch, latestPage],
-        queryFn: async () => {
-            const params = new URLSearchParams()
-            if (publisherParam) params.set('publisher', publisherParam)
-            if (latestSearch) params.set('q', latestSearch)
-            params.set('page', String(latestPage))
-            params.set('limit', '20')
-            const token = getAccessToken()
-            const res = await fetch(`/api/latest-papers?${params.toString()}`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-            })
-            if (!res.ok) throw new Error('Failed to fetch latest papers')
-            return res.json() as Promise<{
-                papers: {
-                    id: string; publisher: string; title: string; abstract: string;
-                    url: string; authors: string[]; venue: string; year: number;
-                    published_at: string;
-                }[]
-                pagination: { page: number; limit: number; total: number; totalPages: number }
-            }>
-        },
-        enabled: !!user,
-        staleTime: 2 * 60 * 1000,
-    })
+  const handleCreate = () => {
+    if (!alertQuery.trim()) { setFormError("Alert query is required"); return }
+    const selectedSources = Object.entries(sources).filter(([, v]) => v).map(([k]) => k)
+    if (selectedSources.length === 0) { setFormError("Select at least one source"); return }
+    createMutation.mutate({ query: alertQuery.trim(), frequency, matchType, sources: selectedSources })
+  }
 
-    const triggerRefresh = async () => {
-        try {
-            setIsRefreshing(true)
-            const token = getAccessToken()
-            await fetch('/api/latest-papers/refresh', {
-                method: 'POST',
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-            })
-            // Give the server a moment then re-fetch
-            setTimeout(() => {
-                refetchLatest()
-                setIsRefreshing(false)
-            }, 3000)
-        } catch {
-            setIsRefreshing(false)
-        }
-    }
+  const alerts = data?.alerts ?? []
+  const filtered = alerts.filter(a =>
+    !searchQuery || a.query.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
-    // Use TanStack Query hooks
-    const { 
-        data: alerts = [], 
-        isLoading: alertsLoading,
-        error: alertsError 
-    } = useAlerts()
+  const frequencyColor = (f: string) => ({
+    daily: "bg-red-500/10 text-red-500 border-red-500/20",
+    weekly: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    monthly: "bg-green-500/10 text-green-600 border-green-500/20",
+  }[f] ?? "bg-muted text-muted-foreground border-border")
 
-    const { 
-        data: notificationsData = { notifications: [], unreadCount: 0 }, 
-        isLoading: notificationsLoading 
-    } = useNotifications()
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Research Alerts</h1>
+          <p className="text-muted-foreground mt-1">Stay updated on new research matching your interests</p>
+        </div>
+        <Button onClick={() => setShowCreate(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          New Alert
+        </Button>
+      </div>
 
-    const { notifications, unreadCount } = notificationsData
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Total Alerts", value: alerts.length, icon: Bell },
+          { label: "Active", value: alerts.filter(a => a.is_active).length, icon: Zap },
+          { label: "Unread", value: alerts.reduce((s, a) => s + (a.unread_count ?? 0), 0), icon: Bell },
+          { label: "This Week", value: alerts.filter(a => a.frequency === "weekly").length, icon: Calendar },
+        ].map((stat) => (
+          <div key={stat.label} className="card p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-3xl font-bold">{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+              <div className="p-2 rounded-xl bg-primary/10">
+                <stat.icon className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
-    const markReadMutation = useMarkNotificationRead()
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search alerts..."
+          className="w-full pl-12 pr-4 py-3 bg-background border border-input rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+        />
+      </div>
 
-    const createAlert = async () => {
-        if (!newAlert.query.trim()) return
-
-        try {
-            const response = await fetch("/api/alerts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newAlert)
-            })
-
-            if (response.ok) {
-                setNewAlert({ query: "", frequency: "weekly", sources: ["arxiv"], matchType: "keyword" })
-                setShowCreateForm(false)
-                // Invalidate alerts cache
-                queryClient.invalidateQueries({ queryKey: ['alerts'] })
-            }
-        } catch (error) {
-            console.error("Failed to create alert:", error)
-        }
-    }
-
-    const deleteAlert = async (id: string) => {
-        try {
-            await fetch(`/api/alerts/${id}`, { method: "DELETE" })
-            queryClient.invalidateQueries({ queryKey: ['alerts'] })
-        } catch (error) {
-            console.error("Failed to delete alert:", error)
-        }
-    }
-
-    const toggleAlert = async (id: string, isActive: boolean) => {
-        try {
-            await fetch(`/api/alerts/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isActive: !isActive })
-            })
-            queryClient.invalidateQueries({ queryKey: ['alerts'] })
-        } catch (error) {
-            console.error("Failed to toggle alert:", error)
-        }
-    }
-
-    const testAlert = async (id: string) => {
-        try {
-            await fetch(`/api/alerts/${id}/test`, { method: "POST" })
-            queryClient.invalidateQueries({ queryKey: ['alerts', 'notifications'] })
-        } catch (error) {
-            console.error("Failed to test alert:", error)
-        }
-    }
-
-    const markAsRead = (id: string) => {
-        markReadMutation.mutate(id)
-    }
-
-    const markAllAsRead = async () => {
-        try {
-            await fetch("/api/alerts/notifications/read-all", { method: "POST" })
-            queryClient.invalidateQueries({ queryKey: ['alerts', 'notifications'] })
-        } catch (error) {
-            console.error("Failed to mark all as read:", error)
-        }
-    }
-
-    const savePreferences = async () => {
-        try {
-            await fetch("/api/alerts/preferences", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(preferences)
-            })
-        } catch (error) {
-            console.error("Failed to save preferences:", error)
-        }
-    }
-
-    const getFrequencyLabel = (freq: string) => {
-        switch (freq) {
-            case "daily": return "Daily"
-            case "weekly": return "Weekly"
-            case "monthly": return "Monthly"
-            default: return freq
-        }
-    }
-
-    return (
-        <div className="container mx-auto py-8 px-4 max-w-7xl">
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false) }}
+          >
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="card p-6 w-full max-w-md space-y-5"
             >
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl">
-                        <Bell className="w-8 h-8 text-white" />
-                    </div>
-                    <div className="flex-1">
-                        <h1 className="text-3xl font-bold">Research Alerts</h1>
-                        <p className="text-muted-foreground">
-                            Get notified when new papers match your research interests
-                        </p>
-                    </div>
-                    {unreadCount > 0 && (
-                        <Badge variant="default" className="bg-red-500">
-                            {unreadCount} unread
-                        </Badge>
-                    )}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">New Alert</h2>
+                <button onClick={() => setShowCreate(false)} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Query *</label>
+                  <input
+                    value={alertQuery}
+                    onChange={(e) => setAlertQuery(e.target.value)}
+                    placeholder="e.g. transformer attention mechanisms"
+                    className="w-full px-4 py-2.5 bg-background border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  />
                 </div>
 
-                <Tabs defaultValue="latest">
-                    <TabsList>
-                        <TabsTrigger value="latest" className="flex items-center gap-2">
-                            <Newspaper className="w-4 h-4" />
-                            Latest Papers
-                        </TabsTrigger>
-                        <TabsTrigger value="alerts" className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4" />
-                            Alerts ({alerts.length})
-                        </TabsTrigger>
-                        <TabsTrigger value="notifications" className="flex items-center gap-2">
-                            <Bell className="w-4 h-4" />
-                            Notifications ({unreadCount})
-                        </TabsTrigger>
-                        <TabsTrigger value="settings" className="flex items-center gap-2">
-                            <Settings className="w-4 h-4" />
-                            Settings
-                        </TabsTrigger>
-                    </TabsList>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">Frequency</label>
+                    <select
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value as typeof frequency)}
+                      className="w-full px-3 py-2.5 bg-background border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    >
+                      {FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">Match Type</label>
+                    <select
+                      value={matchType}
+                      onChange={(e) => setMatchType(e.target.value as typeof matchType)}
+                      className="w-full px-3 py-2.5 bg-background border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    >
+                      {MATCH_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                  </div>
+                </div>
 
-                    {/* ── Latest Papers Tab ── */}
-                    <TabsContent value="latest" className="space-y-4 mt-4">
-                        {/* Header */}
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-lg font-semibold">Latest from Famous Publishers</h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Updated daily at 06:00 UTC &mdash; arXiv, PubMed, CrossRef, bioRxiv, Nature, PLOS, IEEE &amp; Springer
-                                </p>
-                                {publishersData?.lastRun && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                        Last run: {new Date(publishersData.lastRun.finished_at).toLocaleString()}
-                                        &nbsp;&bull;&nbsp;{publishersData.lastRun.papers_fetched} new papers
-                                    </p>
-                                )}
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={triggerRefresh}
-                                disabled={isRefreshing}
-                            >
-                                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                                {isRefreshing ? 'Refreshing…' : 'Refresh Now'}
-                            </Button>
-                        </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Sources</label>
+                  <div className="flex gap-3">
+                    {[{ key: "arxiv", label: "arXiv" }, { key: "semantic_scholar", label: "Semantic Scholar" }].map(s => (
+                      <label key={s.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sources[s.key as keyof typeof sources]}
+                          onChange={(e) => setSources(prev => ({ ...prev, [s.key]: e.target.checked }))}
+                          className="w-4 h-4 accent-primary"
+                        />
+                        <span className="text-sm">{s.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-                        {/* Publisher filter chips */}
-                        <div className="flex flex-wrap gap-2">
-                            {(publishersData?.publishers ?? []).map(pub => {
-                                const active = selectedPublishers.includes(pub.id) ||
-                                    (selectedPublishers.length === 0)
-                                return (
-                                    <button
-                                        key={pub.id}
-                                        onClick={() => pub.allowedForTier ? togglePublisher(pub.id) : navigate('/pricing')}
-                                        title={pub.allowedForTier ? pub.description : 'Upgrade your plan to unlock this publisher'}
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-opacity
-                                            ${pub.allowedForTier
-                                                ? PUBLISHER_COLORS[pub.id] ?? 'bg-muted text-muted-foreground border-border'
-                                                : 'bg-muted text-muted-foreground border-border'}
-                                            ${pub.allowedForTier
-                                                ? (selectedPublishers.length > 0 && !selectedPublishers.includes(pub.id) ? 'opacity-40' : 'opacity-100')
-                                                : 'opacity-50 cursor-pointer'}`}
-                                    >
-                                        {pub.allowedForTier
-                                            ? <Building2 className="w-3 h-3" />
-                                            : <Lock className="w-3 h-3" />}
-                                        {pub.name}
-                                        {pub.allowedForTier && pub.paperCount > 0 && (
-                                            <span className="opacity-70">({pub.paperCount})</span>
-                                        )}
-                                        {!pub.allowedForTier && (
-                                            <span className="text-primary font-semibold">Pro</span>
-                                        )}
-                                    </button>
-                                )
-                            })}
-                            {selectedPublishers.length > 0 && (
-                                <button
-                                    onClick={() => { setSelectedPublishers([]); setLatestPage(1); }}
-                                    className="text-xs text-muted-foreground underline px-2"
-                                >
-                                    Clear filter
-                                </button>
-                            )}
-                        </div>
+              {formError && (
+                <div className="flex items-center gap-2 text-red-500 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  {formError}
+                </div>
+              )}
 
-                        {/* Search */}
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                                <input
-                                    type="text"
-                                    placeholder="Search titles and abstracts…"
-                                    value={latestSearchInput}
-                                    onChange={e => setLatestSearchInput(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter') {
-                                            setLatestSearch(latestSearchInput)
-                                            setLatestPage(1)
-                                        }
-                                    }}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                />
-                            </div>
-                            <Button
-                                size="sm"
-                                onClick={() => { setLatestSearch(latestSearchInput); setLatestPage(1); }}
-                            >
-                                Search
-                            </Button>
-                            {latestSearch && (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => { setLatestSearch(''); setLatestSearchInput(''); setLatestPage(1); }}
-                                >
-                                    Clear
-                                </Button>
-                            )}
-                        </div>
-
-                        {/* Paper cards */}
-                        {latestLoading ? (
-                            <div className="space-y-3">
-                                {Array.from({ length: 6 }).map((_, i) => (
-                                    <div key={i} className="h-28 rounded-lg bg-muted animate-pulse" />
-                                ))}
-                            </div>
-                        ) : !latestPapersData?.papers.length ? (
-                            <Card className="p-12 text-center">
-                                <Newspaper className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No Papers Yet</h3>
-                                <p className="text-muted-foreground mb-4">
-                                    The cron job runs daily at 06:00 UTC. Click &ldquo;Refresh Now&rdquo; to fetch papers immediately.
-                                </p>
-                                <Button onClick={triggerRefresh} disabled={isRefreshing}>
-                                    <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                                    Fetch Now
-                                </Button>
-                            </Card>
-                        ) : (
-                            <div className="space-y-3">
-                                {latestPapersData.papers.map(paper => (
-                                    <Card key={paper.id} className="hover:shadow-md transition-shadow">
-                                        <CardContent className="p-4">
-                                            <div className="flex items-start gap-3">
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border
-                                                            ${PUBLISHER_COLORS[paper.publisher] ?? 'bg-muted text-muted-foreground border-border'}`}>
-                                                            <Building2 className="w-3 h-3" />
-                                                            {paper.publisher.toUpperCase()}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {paper.venue}
-                                                        </span>
-                                                        {paper.year && (
-                                                            <span className="text-xs text-muted-foreground">{paper.year}</span>
-                                                        )}
-                                                        {paper.published_at && (
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {new Date(paper.published_at).toLocaleDateString()}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <a
-                                                        href={paper.url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="font-medium hover:underline line-clamp-2"
-                                                    >
-                                                        {paper.title}
-                                                    </a>
-                                                    {paper.authors.length > 0 && (
-                                                        <p className="text-sm text-muted-foreground mt-1">
-                                                            {paper.authors.slice(0, 4).join(', ')}
-                                                            {paper.authors.length > 4 && ` +${paper.authors.length - 4} more`}
-                                                        </p>
-                                                    )}
-                                                    {paper.abstract && (
-                                                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                                            {paper.abstract}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <a
-                                                    href={paper.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="shrink-0"
-                                                >
-                                                    <Button variant="ghost" size="icon">
-                                                        <ExternalLink className="w-4 h-4" />
-                                                    </Button>
-                                                </a>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Pagination */}
-                        {latestPapersData && latestPapersData.pagination.totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-3 pt-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={latestPage <= 1}
-                                    onClick={() => setLatestPage(p => p - 1)}
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                                <span className="text-sm text-muted-foreground">
-                                    Page {latestPapersData.pagination.page} of {latestPapersData.pagination.totalPages}
-                                    &nbsp;&bull;&nbsp;{latestPapersData.pagination.total.toLocaleString()} papers
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={latestPage >= latestPapersData.pagination.totalPages}
-                                    onClick={() => setLatestPage(p => p + 1)}
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </Button>
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="alerts" className="space-y-4 mt-4">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-lg font-semibold">Your Alerts</h2>
-                            <Button onClick={() => setShowCreateForm(!showCreateForm)}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                New Alert
-                            </Button>
-                        </div>
-
-                        {showCreateForm && (
-                            <Card className="p-4">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-sm font-medium">Search Query</label>
-                                        <Input 
-                                            placeholder="e.g., LLM alignment, transformer efficiency..."
-                                            value={newAlert.query}
-                                            onChange={(e) => setNewAlert({...newAlert, query: e.target.value})}
-                                            className="mt-1"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-sm font-medium">Frequency</label>
-                                            <select 
-                                                value={newAlert.frequency}
-                                                onChange={(e) => setNewAlert({...newAlert, frequency: e.target.value})}
-                                                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            >
-                                                <option value="daily">Daily</option>
-                                                <option value="weekly">Weekly</option>
-                                                <option value="monthly">Monthly</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium">Sources</label>
-                                            <select 
-                                                value={newAlert.sources[0]}
-                                                onChange={(e) => setNewAlert({...newAlert, sources: [e.target.value]})}
-                                                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            >
-                                                <option value="arxiv">arXiv</option>
-                                                <option value="semantic_scholar">Semantic Scholar</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button onClick={createAlert}>Create Alert</Button>
-                                        <Button variant="outline" onClick={() => setShowCreateForm(false)}>Cancel</Button>
-                                    </div>
-                                </div>
-                            </Card>
-                        )}
-
-                        {alertsLoading ? (
-                            <div className="space-y-3">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                    <AlertCardSkeleton key={i} />
-                                ))}
-                            </div>
-                        ) : alerts.length === 0 && !showCreateForm ? (
-                            <Card className="p-12 text-center">
-                                <AlertTriangle className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No Alerts Yet</h3>
-                                <p className="text-muted-foreground mb-4">
-                                    Create an alert to get notified about new papers in your area of interest.
-                                </p>
-                                <Button onClick={() => setShowCreateForm(true)}>
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Create Your First Alert
-                                </Button>
-                            </Card>
-                        ) : (
-                            <div className="space-y-3">
-                                {alerts.map((alert: any) => (
-                                    <Card key={alert.id} className={`${!alert.is_active ? 'opacity-60' : ''}`}>
-                                        <CardContent className="p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <Search className="w-4 h-4 text-muted-foreground" />
-                                                        <span className="font-medium">{alert.query}</span>
-                                                        {!alert.is_active && (
-                                                            <Badge variant="secondary">Paused</Badge>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                                                        <span className="flex items-center gap-1">
-                                                            <Calendar className="w-3 h-3" />
-                                                            {getFrequencyLabel(alert.frequency)}
-                                                        </span>
-                                                        <span>{alert.sources.join(", ")}</span>
-                                                        {alert.notification_count > 0 && (
-                                                            <span>{alert.notification_count} notifications</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm"
-                                                        onClick={() => testAlert(alert.id)}
-                                                    >
-                                                        <Play className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm"
-                                                        onClick={() => toggleAlert(alert.id, alert.is_active)}
-                                                    >
-                                                        {alert.is_active ? "Pause" : "Resume"}
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm"
-                                                        onClick={() => deleteAlert(alert.id)}
-                                                    >
-                                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="notifications" className="space-y-4 mt-4">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-lg font-semibold">Recent Notifications</h2>
-                            {unreadCount > 0 && (
-                                <Button variant="outline" size="sm" onClick={markAllAsRead}>
-                                    <CheckCheck className="w-4 h-4 mr-2" />
-                                    Mark all as read
-                                </Button>
-                            )}
-                        </div>
-
-                        {notificationsLoading ? (
-                            <div className="space-y-2">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                    <NotificationSkeleton key={i} />
-                                ))}
-                            </div>
-                        ) : notifications.length === 0 ? (
-                            <Card className="p-12 text-center">
-                                <Bell className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                                <h3 className="text-lg font-semibold mb-2">No Notifications</h3>
-                                <p className="text-muted-foreground">
-                                    You'll see notifications here when new papers match your alerts.
-                                </p>
-                            </Card>
-                        ) : (
-                            <div className="space-y-2">
-                                {notifications.map((notif: any) => (
-                                    <Card 
-                                        key={notif.id} 
-                                        className={`${notif.is_read ? 'bg-muted/30' : 'bg-blue-50 dark:bg-blue-950/20'}`}
-                                    >
-                                        <CardContent className="p-4">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2">
-                                                        {!notif.is_read && (
-                                                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                                                        )}
-                                                        <span className="font-medium">{notif.title}</span>
-                                                    </div>
-                                                    {notif.body && (
-                                                        <p className="text-sm text-muted-foreground mt-1">
-                                                            {notif.body}
-                                                        </p>
-                                                    )}
-                                                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                                        <span>{new Date(notif.created_at).toLocaleString()}</span>
-                                                        {notif.alert_query && (
-                                                            <Badge variant="outline">Alert: {notif.alert_query}</Badge>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    {!notif.is_read && (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="sm"
-                                                            onClick={() => markAsRead(notif.id)}
-                                                            disabled={markReadMutation.isPending}
-                                                        >
-                                                            <Check className="w-4 h-4" />
-                                                        </Button>
-                                                    )}
-                                                    {notif.paper_url && (
-                                                        <a 
-                                                            href={notif.paper_url} 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer"
-                                                        >
-                                                            <Button variant="ghost" size="sm">
-                                                                <ExternalLink className="w-4 h-4" />
-                                                            </Button>
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="settings" className="space-y-4 mt-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Notification Preferences</CardTitle>
-                                <CardDescription>Choose how you want to be notified</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-3">
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.emailAlerts}
-                                            onChange={(e) => setPreferences({...preferences, emailAlerts: e.target.checked})}
-                                            className="rounded"
-                                        />
-                                        <Mail className="w-4 h-4" />
-                                        Email notifications
-                                    </label>
-                                    <label className="flex items-center gap-3">
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.pushAlerts}
-                                            onChange={(e) => setPreferences({...preferences, pushAlerts: e.target.checked})}
-                                            className="rounded"
-                                        />
-                                        <Smartphone className="w-4 h-4" />
-                                        Push notifications
-                                    </label>
-                                    <label className="flex items-center gap-3">
-                                        <input 
-                                            type="checkbox"
-                                            checked={preferences.inAppAlerts}
-                                            onChange={(e) => setPreferences({...preferences, inAppAlerts: e.target.checked})}
-                                            className="rounded"
-                                        />
-                                        <Bell className="w-4 h-4" />
-                                        In-app notifications
-                                    </label>
-                                </div>
-
-                                <div>
-                                    <label className="text-sm font-medium">Alert Frequency</label>
-                                    <select 
-                                        value={preferences.alertFrequency}
-                                        onChange={(e) => setPreferences({...preferences, alertFrequency: e.target.value})}
-                                        className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                    >
-                                        <option value="instant">Instant</option>
-                                        <option value="daily">Daily digest</option>
-                                        <option value="weekly">Weekly digest</option>
-                                    </select>
-                                </div>
-
-                                <Button onClick={savePreferences}>Save Preferences</Button>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                </Tabs>
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>
+                  Cancel
+                </Button>
+                <Button className="flex-1" onClick={handleCreate} disabled={createMutation.isPending}>
+                  {createMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Bell className="w-4 h-4 mr-2" />}
+                  Create Alert
+                </Button>
+              </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-    )
+      ) : error ? (
+        <div className="card p-12 text-center space-y-3">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+          <p className="text-muted-foreground">Failed to load alerts. Please try again.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="card p-12 text-center space-y-4">
+          <Bell className="w-16 h-16 text-muted-foreground/40 mx-auto" />
+          <div>
+            <p className="text-lg font-medium">No alerts yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Create an alert to get notified about new research matching your query.</p>
+          </div>
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Alert
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((alert, index) => (
+            <motion.div
+              key={alert.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="card p-5"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className={cn("p-2.5 rounded-xl flex-shrink-0", alert.is_active ? "bg-primary/10" : "bg-muted")}>
+                    {alert.is_active ? (
+                      <Bell className="w-5 h-5 text-primary" />
+                    ) : (
+                      <BellOff className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold truncate">{alert.query}</h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                      <span className={cn("text-xs px-2 py-0.5 rounded-md border font-medium capitalize", frequencyColor(alert.frequency))}>
+                        {alert.frequency}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded-md border border-border text-muted-foreground capitalize">
+                        {alert.match_type}
+                      </span>
+                      {alert.sources?.map(s => (
+                        <span key={s} className="text-xs px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  {alert.unread_count > 0 && (
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                      {alert.unread_count}
+                    </span>
+                  )}
+                  {alert.is_active ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-500 mt-2 ml-auto" />
+                  ) : (
+                    <Clock className="w-4 h-4 text-muted-foreground mt-2 ml-auto" />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border text-xs text-muted-foreground">
+                <span>{alert.notification_count ?? 0} notifications total</span>
+                {alert.last_triggered_at && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Last: {new Date(alert.last_triggered_at).toLocaleDateString()}
+                  </span>
+                )}
+                <span className="flex items-center gap-1 ml-auto">
+                  <Calendar className="w-3 h-3" />
+                  Created {new Date(alert.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  )
 }

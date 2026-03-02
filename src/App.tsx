@@ -66,6 +66,7 @@ const AssistantPage = lazyWithRetry(() => import("@/pages/AssistantPage").then(m
 const TeamSettingsPage = lazyWithRetry(() => import("@/pages/TeamSettingsPage").then(m => ({ default: m.default })))
 const AdminPage = lazyWithRetry(() => import("@/pages/AdminPage").then(m => ({ default: m.default })))
 const PricingPage = lazyWithRetry(() => import("@/pages/PricingPage").then(m => ({ default: m.default })))
+const PaperDetailPage = lazyWithRetry(() => import("@/pages/PaperDetailPage").then(m => ({ default: m.default })))
 
 // Component to prefetch common data
 function PrefetchProvider({ children }: { children: React.ReactNode }) {
@@ -123,6 +124,7 @@ export default function App() {
                     <Route path="/assistant" element={<AssistantPage />} />
                     <Route path="/team-settings" element={<TeamSettingsPage />} />
                     <Route path="/admin" element={<AdminPage />} />
+                    <Route path="/papers/:id" element={<PaperDetailPage />} />
                   </Route>
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>

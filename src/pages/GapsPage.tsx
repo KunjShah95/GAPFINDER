@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getAccessToken } from "@/lib/api-client"
 import { motion } from "framer-motion"
 import {
@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  FileText
+  FileText,
+  ThumbsUp,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -36,6 +38,7 @@ interface ApiGap {
   difficulty: string
   is_resolved?: boolean
   paper_title?: string
+  upvotes?: number
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -66,6 +69,38 @@ const difficultyColors: Record<string, string> = {
 export default function GapsPage() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const queryClient = useQueryClient()
+  const [votingId, setVotingId] = useState<string | null>(null)
+
+  const voteMutation = useMutation({
+    mutationFn: async ({ gapId, vote }: { gapId: string; vote: 1 | -1 }) => {
+      const token = getAccessToken()
+      const res = await fetch(`/api/gaps/${gapId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ vote }),
+      })
+      if (!res.ok) throw new Error('Vote failed')
+      return res.json() as Promise<{ upvotes: number }>
+    },
+    onMutate: ({ gapId }) => setVotingId(gapId),
+    onSuccess: (data, { gapId }) => {
+      queryClient.setQueryData<{ gaps: ApiGap[]; pagination: { total: number } }>(
+        ['gaps', selectedCategory],
+        (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            gaps: old.gaps.map((g) => g.id === gapId ? { ...g, upvotes: data.upvotes } : g),
+          }
+        }
+      )
+    },
+    onSettled: () => setVotingId(null),
+  })
 
   const { data: gapsData } = useQuery({
     queryKey: ['gaps', selectedCategory],
@@ -242,8 +277,21 @@ export default function GapsPage() {
                 <button className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all">
                   <ArrowUpRight className="w-5 h-5" />
                 </button>
-                <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                  <CheckCircle2 className="w-5 h-5" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); voteMutation.mutate({ gapId: gap.id, vote: 1 }) }}
+                  disabled={votingId === gap.id}
+                  className={cn(
+                    "flex items-center gap-1 p-2 rounded-lg border transition-all",
+                    "hover:bg-primary/10 hover:border-primary/50 hover:text-primary",
+                    "text-muted-foreground border-border text-sm",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {votingId === gap.id
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <ThumbsUp className="w-4 h-4" />
+                  }
+                  <span className="text-xs">{gap.upvotes ?? 0}</span>
                 </button>
               </div>
             </div>

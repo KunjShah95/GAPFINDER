@@ -40,6 +40,8 @@ import searchRoutes from './routes/search.js';
 import activityRoutes from './routes/activity.js';
 import annotationsRoutes from './routes/annotations.js';
 import recommendationsRoutes from './routes/recommendations.js';
+import billingRoutes from './routes/billing.js';
+import apiKeysRoutes from './routes/api-keys.js';
 import latestPapersRoutes from './routes/latest-papers.js';
 import { startLatestPapersCron, stopLatestPapersCron } from './services/latest-papers-cron.js';
 
@@ -114,6 +116,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/annotations', annotationsRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/keys', apiKeysRoutes);
 app.use('/api/latest-papers', latestPapersRoutes);
 
 // ============================================================================

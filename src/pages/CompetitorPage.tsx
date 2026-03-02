@@ -1,5 +1,5 @@
 import { motion } from "framer-motion"
-import { TrendingUp, Users, Target, ChevronRight } from "lucide-react"
+import { TrendingUp, Users, Target } from "lucide-react"
 
 export default function CompetitorPage() {
   const groups = [

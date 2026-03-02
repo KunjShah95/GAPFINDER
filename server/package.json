@@ -10,6 +10,7 @@
         "db:seed": "tsx src/db/seed.ts"
     },
     "dependencies": {
+        "@sendgrid/mail": "^8.1.6",
         "@sentry/node": "^10.41.0",
         "@types/node-cron": "^3.0.11",
         "bcryptjs": "^2.4.3",
@@ -21,6 +22,8 @@
         "jsonwebtoken": "^9.0.2",
         "node-cron": "^4.2.1",
         "pg": "^8.13.1",
+        "razorpay": "^2.9.6",
+        "stripe": "^20.4.0",
         "uuid": "^11.1.0",
         "zod": "^4.3.6"
     },

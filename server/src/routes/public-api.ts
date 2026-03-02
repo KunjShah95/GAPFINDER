@@ -16,18 +16,14 @@ const router = Router();
 // TYPES
 // ============================================================================
 
-interface ApiKeyPayload {
-    userId: string;
-    keyId: string;
-    permissions: string[];
-    tier: string;
-}
+// Re-export from middleware
+export { ApiKeyUser } from '../middleware/api-auth.js';
 
-declare global {
-    namespace Express {
-        interface Request {
-            apiKey?: ApiKeyPayload;
-        }
+// Use the apiKey from middleware
+declare module '../middleware/api-auth.js' {
+    interface ApiKeyUser {
+        keyId?: string;
+        permissions?: string[];
     }
 }
 
@@ -138,9 +134,13 @@ async function requireApiKey(req: Request, res: Response, next: NextFunction): P
 
         req.apiKey = {
             userId: keyRecord.user_id,
+            apiKeyId: keyRecord.id,
             keyId: keyRecord.id,
-            permissions: keyRecord.permissions,
-            tier: keyRecord.tier,
+            name: keyRecord.name,
+            permissions: keyRecord.permissions || ['read'],
+            tier: keyRecord.tier || 'free',
+            rateLimit: 100,
+            monthlyUsage: 0,
         };
 
         // Update last_used_at (fire and forget)
@@ -159,13 +159,14 @@ function requirePermission(permission: string) {
             res.status(401).json({ error: { code: 'NOT_AUTHENTICATED', message: 'Authentication required' } });
             return;
         }
-        if (!req.apiKey.permissions.includes(permission)) {
+        const perms = req.apiKey.permissions || [];
+        if (!perms.includes(permission)) {
             res.status(403).json({
                 error: {
                     code: 'INSUFFICIENT_PERMISSIONS',
                     message: `API key lacks "${permission}" permission`,
                     required: permission,
-                    current: req.apiKey.permissions,
+                    current: perms,
                 },
             });
             return;

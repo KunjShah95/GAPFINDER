@@ -78,11 +78,16 @@ const DEFAULT_CONFIGS: Omit<ConfigItem, 'id' | 'updatedAt' | 'updatedBy'>[] = [
     { category: 'features', key: 'enableWebhooks', value: true, valueType: 'boolean', description: 'Enable webhooks', isPublic: false, isFeatureFlag: true },
     { category: 'features', key: 'enableAlerts', value: true, valueType: 'boolean', description: 'Enable research alerts', isPublic: false, isFeatureFlag: true },
     { category: 'features', key: 'enablePublicGaps', value: true, valueType: 'boolean', description: 'Enable public gap sharing', isPublic: false, isFeatureFlag: true },
+    { category: 'features', key: 'enablePayments', value: false, valueType: 'boolean', description: 'Enable payment system', isPublic: false, isFeatureFlag: true },
+    
+    // Payment Configuration
+    { category: 'payment', key: 'provider', value: 'stripe', valueType: 'string', description: 'Payment provider: stripe or razorpay', isPublic: false, isFeatureFlag: false },
     
     // UI/UX
     { category: 'ui', key: 'theme', value: 'system', valueType: 'string', description: 'Default theme (light/dark/system)', isPublic: true, isFeatureFlag: false },
     { category: 'ui', key: 'itemsPerPage', value: 20, valueType: 'number', description: 'Items per page in lists', isPublic: true, isFeatureFlag: false },
     { category: 'ui', key: 'defaultLanguage', value: 'en', valueType: 'string', description: 'Default language', isPublic: true, isFeatureFlag: false },
+    { category: 'ui', key: 'appUrl', value: 'http://localhost:5173', valueType: 'string', description: 'Application URL for redirects', isPublic: false, isFeatureFlag: false },
     
     // Email
     { category: 'email', key: 'fromName', value: 'GapMiner', valueType: 'string', description: 'Email sender name', isPublic: false, isFeatureFlag: false },

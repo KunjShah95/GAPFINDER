@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { getAccessToken } from "@/lib/api-client"
 import { motion } from "framer-motion"
@@ -44,6 +45,7 @@ const filters = [
 ]
 
 export default function PapersPage() {
+  const navigate = useNavigate()
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({})
@@ -196,6 +198,7 @@ export default function PapersPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
+                onClick={() => navigate(`/papers/${paper.id}`)}
                 className={cn(
                   viewMode === "grid" ? "card card-hover p-5 cursor-pointer" : "px-6 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
                 )}

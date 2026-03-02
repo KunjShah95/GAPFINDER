@@ -32,6 +32,11 @@ const UpdateProfileSchema = z.object({
     avatar: z.string().url().optional(),
 });
 
+const ChangePasswordSchema = z.object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+});
+
 // ============================================================================
 // POST /auth/register
 // ============================================================================
@@ -328,6 +333,42 @@ router.patch('/profile', requireAuth, async (req: Request, res: Response): Promi
     } catch (error) {
         console.error('[Auth] Profile update error:', error);
         res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
+// ============================================================================
+// POST /auth/change-password
+// ============================================================================
+
+router.post('/change-password', requireAuth, async (req: Request, res: Response): Promise<void> => {
+    try {
+        const parsed = ChangePasswordSchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+            return;
+        }
+
+        const { currentPassword, newPassword } = parsed.data;
+
+        const result = await query('SELECT password_hash FROM users WHERE id = $1', [req.user!.userId]);
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+        if (!isMatch) {
+            res.status(400).json({ error: 'Current password is incorrect' });
+            return;
+        }
+
+        const newHash = await bcrypt.hash(newPassword, config.bcryptRounds);
+        await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user!.userId]);
+
+        res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+        console.error('[Auth] Change password error:', error);
+        res.status(500).json({ error: 'Failed to change password' });
     }
 });
 

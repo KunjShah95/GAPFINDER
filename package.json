@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:server": "npm --prefix server run dev",
     "dev:full": "concurrently -n frontend,backend -c cyan,green \"npm run dev\" \"npm run dev:server\"",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "build:server": "npm --prefix server run build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",

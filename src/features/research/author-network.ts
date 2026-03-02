@@ -219,7 +219,7 @@ export function findPotentialCollaborators(
     if (other.id === authorId || existingCollaborators.has(other.id)) continue
 
     let score = 0
-    let reasons: string[] = []
+    const reasons: string[] = []
 
     // Shared research areas
     const sharedAreas = other.researchAreas.filter(a => authorAreas.has(a))

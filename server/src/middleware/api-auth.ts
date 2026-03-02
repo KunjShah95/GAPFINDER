@@ -10,7 +10,9 @@ import crypto from 'crypto';
 export interface ApiKeyUser {
     userId: string;
     apiKeyId: string;
+    keyId?: string;
     name: string;
+    permissions?: string[];
     tier: string;
     rateLimit: number;
     monthlyQuota?: number;
