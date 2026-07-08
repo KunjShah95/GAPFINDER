@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { query, transaction } from '../db/client.js';
 import { config } from '../config.js';
 import { requireAuth, generateTokens, type JwtPayload } from '../middleware/auth.js';
+import { logAuditEvent, logLoginFailure, logLoginSuccess, logRegistration, logPasswordChange, AuditActions } from '../lib/audit-trail.js';
 
 const router = Router();
 
@@ -104,6 +105,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
         const tokens = generateTokens(tokenPayload);
 
+        await logRegistration(req, result.id, email);
+
         res.status(201).json({
             user: {
                 id: result.id,
@@ -146,6 +149,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         );
 
         if (result.rows.length === 0) {
+            await logLoginFailure(req, email, 'user_not_found');
             res.status(401).json({ error: 'Invalid email or password' });
             return;
         }
@@ -155,6 +159,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         // Verify password
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) {
+            await logLoginFailure(req, email, 'invalid_password');
             res.status(401).json({ error: 'Invalid email or password' });
             return;
         }
@@ -170,6 +175,8 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
         };
 
         const tokens = generateTokens(tokenPayload);
+
+        await logLoginSuccess(req, user.id);
 
         res.json({
             user: {
@@ -364,6 +371,8 @@ router.post('/change-password', requireAuth, async (req: Request, res: Response)
 
         const newHash = await bcrypt.hash(newPassword, config.bcryptRounds);
         await query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user!.userId]);
+
+        await logPasswordChange(req, req.user!.userId);
 
         res.json({ message: 'Password changed successfully' });
     } catch (error) {

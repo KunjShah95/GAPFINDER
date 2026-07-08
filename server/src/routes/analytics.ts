@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { Router, Request, Response } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
 import { query } from '../db/client.js';
 
 const router = Router();
@@ -13,7 +13,7 @@ const router = Router();
 // GET /analytics/overview — Comprehensive dashboard analytics
 // ============================================================================
 
-router.get('/overview', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/overview', requireAuth, requireFeature('advanced_analytics'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const period = parseInt(req.query.period as string) || 30; // days
@@ -24,8 +24,8 @@ router.get('/overview', requireAuth, async (req: Request, res: Response): Promis
             query(
                 `SELECT 
                     COUNT(*) as total_papers,
-                    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '${period} days') as papers_this_period,
-                    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') as papers_this_week,
+                    COUNT(*) FILTER (WHERE COALESCE(created_at, updated_at) > NOW() - INTERVAL '${period} days') as papers_this_period,
+                    COUNT(*) FILTER (WHERE COALESCE(created_at, updated_at) > NOW() - INTERVAL '7 days') as papers_this_week,
                     COUNT(DISTINCT venue) as unique_venues,
                     AVG(citation_count)::integer as avg_citations,
                     MAX(citation_count) as max_citations
@@ -37,36 +37,27 @@ router.get('/overview', requireAuth, async (req: Request, res: Response): Promis
             query(
                 `SELECT 
                     COUNT(*) as total_gaps,
-                    COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '${period} days') as gaps_this_period,
+                    COUNT(*) FILTER (WHERE COALESCE(created_at, updated_at) > NOW() - INTERVAL '${period} days') as gaps_this_period,
                     COUNT(*) FILTER (WHERE is_resolved = TRUE) as resolved_gaps,
                     COUNT(*) FILTER (WHERE impact_score = 'high') as high_impact_gaps,
-                    AVG(confidence)::numeric(3,2) as avg_confidence,
-                    json_object_agg(type, cnt) as type_distribution
-                 FROM (
-                    SELECT type, COUNT(*) as cnt FROM gaps WHERE user_id = $1 GROUP BY type
-                 ) sub, (
-                    SELECT COUNT(*) as total_gaps,
-                           COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '${period} days') as gaps_this_period,
-                           COUNT(*) FILTER (WHERE is_resolved = TRUE) as resolved_gaps,
-                           COUNT(*) FILTER (WHERE impact_score = 'high') as high_impact_gaps,
-                           AVG(confidence)::numeric(3,2) as avg_confidence
-                    FROM gaps WHERE user_id = $1
-                 ) stats`,
+                    AVG(confidence)::numeric(3,2) as avg_confidence
+                FROM gaps
+                WHERE user_id = $1`,
                 [userId]
             ).catch(() => ({ rows: [{}] })),
 
             // Activity timeline (papers + gaps per day)
             query(
-                `SELECT date_trunc('day', created_at)::date as day,
+                  `SELECT date_trunc('day', COALESCE(created_at, updated_at))::date as day,
                         'paper' as entity_type,
                         COUNT(*) as count
-                 FROM papers WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${period} days'
+                 FROM papers WHERE user_id = $1 AND COALESCE(created_at, updated_at) > NOW() - INTERVAL '${period} days'
                  GROUP BY day
                  UNION ALL
-                 SELECT date_trunc('day', created_at)::date as day,
+                 SELECT date_trunc('day', COALESCE(created_at, updated_at))::date as day,
                         'gap' as entity_type,
                         COUNT(*) as count
-                 FROM gaps WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${period} days'
+                 FROM gaps WHERE user_id = $1 AND COALESCE(created_at, updated_at) > NOW() - INTERVAL '${period} days'
                  GROUP BY day
                  ORDER BY day`,
                 [userId]
@@ -87,19 +78,19 @@ router.get('/overview', requireAuth, async (req: Request, res: Response): Promis
 
             // Recent activity feed
             query(
-                `(SELECT 'paper_added' as action, p.title as subject, p.created_at as timestamp
-                  FROM papers p WHERE p.user_id = $1
-                  ORDER BY p.created_at DESC LIMIT 5)
-                 UNION ALL
-                 (SELECT 'gap_found' as action, g.problem as subject, g.created_at as timestamp
-                  FROM gaps g WHERE g.user_id = $1
-                  ORDER BY g.created_at DESC LIMIT 5)
-                 UNION ALL
-                 (SELECT 'gap_resolved' as action, g.problem as subject, g.resolved_at as timestamp
-                  FROM gaps g WHERE g.user_id = $1 AND g.is_resolved = TRUE
-                  ORDER BY g.resolved_at DESC LIMIT 5)
-                 ORDER BY timestamp DESC
-                 LIMIT 15`,
+                                `(SELECT 'paper_added' as action, p.title as subject, COALESCE(p.created_at, p.updated_at) as timestamp
+                                    FROM papers p WHERE p.user_id = $1
+                                    ORDER BY COALESCE(p.created_at, p.updated_at) DESC LIMIT 5)
+                                 UNION ALL
+                                 (SELECT 'gap_found' as action, g.problem as subject, COALESCE(g.created_at, g.updated_at) as timestamp
+                                    FROM gaps g WHERE g.user_id = $1
+                                    ORDER BY COALESCE(g.created_at, g.updated_at) DESC LIMIT 5)
+                                 UNION ALL
+                                 (SELECT 'gap_resolved' as action, g.problem as subject, COALESCE(g.resolved_at, g.updated_at) as timestamp
+                                    FROM gaps g WHERE g.user_id = $1 AND g.is_resolved = TRUE
+                                    ORDER BY COALESCE(g.resolved_at, g.updated_at) DESC LIMIT 5)
+                                 ORDER BY timestamp DESC
+                                 LIMIT 15`,
                 [userId]
             ),
         ]);
@@ -122,7 +113,7 @@ router.get('/overview', requireAuth, async (req: Request, res: Response): Promis
 // GET /analytics/trends — Gap trend analysis over time
 // ============================================================================
 
-router.get('/trends', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/trends', requireAuth, requireFeature('advanced_analytics'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const groupBy = (req.query.groupBy as string) || 'week'; // day, week, month
@@ -136,7 +127,7 @@ router.get('/trends', requireAuth, async (req: Request, res: Response): Promise<
         }
 
         const result = await query(
-            `SELECT date_trunc('${truncFn}', g.created_at)::date as period,
+            `SELECT date_trunc('${truncFn}', COALESCE(g.created_at, g.updated_at))::date as period,
                     COUNT(*) as total_gaps,
                     COUNT(*) FILTER (WHERE g.type = 'data') as data_gaps,
                     COUNT(*) FILTER (WHERE g.type = 'compute') as compute_gaps,
@@ -147,7 +138,7 @@ router.get('/trends', requireAuth, async (req: Request, res: Response): Promise<
                     COUNT(*) FILTER (WHERE g.impact_score = 'high') as high_impact,
                     AVG(g.confidence)::numeric(3,2) as avg_confidence
              FROM gaps g
-             WHERE g.user_id = $1 AND g.created_at > NOW() - INTERVAL '${months} months'
+             WHERE g.user_id = $1 AND COALESCE(g.created_at, g.updated_at) > NOW() - INTERVAL '${months} months'
              GROUP BY period
              ORDER BY period`,
             [userId]
@@ -164,16 +155,16 @@ router.get('/trends', requireAuth, async (req: Request, res: Response): Promise<
 // GET /analytics/research-velocity — How fast user is finding gaps
 // ============================================================================
 
-router.get('/research-velocity', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/research-velocity', requireAuth, requireFeature('advanced_analytics'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
         const result = await query(
             `WITH weekly_stats AS (
-                SELECT date_trunc('week', created_at)::date as week,
+                SELECT date_trunc('week', COALESCE(created_at, updated_at))::date as week,
                        COUNT(*) as gaps_found
                 FROM gaps
-                WHERE user_id = $1 AND created_at > NOW() - INTERVAL '12 weeks'
+                WHERE user_id = $1 AND COALESCE(created_at, updated_at) > NOW() - INTERVAL '12 weeks'
                 GROUP BY week
                 ORDER BY week
             )
@@ -193,7 +184,7 @@ router.get('/research-velocity', requireAuth, async (req: Request, res: Response
         // Calculate overall velocity (gaps per week average)
         const totalResult = await query(
             `SELECT 
-                COUNT(*)::decimal / GREATEST(1, EXTRACT(EPOCH FROM (MAX(created_at) - MIN(created_at))) / 604800)
+                COUNT(*)::decimal / GREATEST(1, EXTRACT(EPOCH FROM (MAX(COALESCE(created_at, updated_at)) - MIN(COALESCE(created_at, updated_at))) / 604800))
                     as gaps_per_week
              FROM gaps WHERE user_id = $1`,
             [userId]
@@ -213,7 +204,7 @@ router.get('/research-velocity', requireAuth, async (req: Request, res: Response
 // GET /analytics/gap-landscape — AI-enriched gap category landscape
 // ============================================================================
 
-router.get('/gap-landscape', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/gap-landscape', requireAuth, requireFeature('advanced_analytics'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -245,7 +236,7 @@ router.get('/gap-landscape', requireAuth, async (req: Request, res: Response): P
 // GET /analytics/collaboration-stats — Community engagement metrics
 // ============================================================================
 
-router.get('/collaboration-stats', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/collaboration-stats', requireAuth, requireFeature('advanced_analytics'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -287,7 +278,7 @@ router.get('/collaboration-stats', requireAuth, async (req: Request, res: Respon
 // GET /analytics/llm-usage — LLM call logs & cost tracking
 // ============================================================================
 
-router.get('/llm-usage', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/llm-usage', requireAuth, requireFeature('advanced_analytics'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const days = parseInt(req.query.days as string) || 30;

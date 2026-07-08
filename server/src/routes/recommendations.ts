@@ -4,7 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
 import { getRecommendations, getTrendingGaps, discoverPapersForUser } from '../lib/recommendations.js';
 import { getPublicConfigs, isFeatureEnabled } from '../lib/config.js';
 
@@ -20,7 +20,7 @@ const RecommendationsSchema = z.object({
     exclude: z.string().optional(),
 });
 
-router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/', requireAuth, requireFeature('recommendations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = RecommendationsSchema.safeParse(req.query);
         if (!parsed.success) {
@@ -68,7 +68,7 @@ router.get('/trending', async (_req: Request, res: Response): Promise<void> => {
 // GET /recommendations/discover — Discover new papers
 // ============================================================================
 
-router.get('/discover', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/discover', requireAuth, requireFeature('recommendations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const limit = parseInt(req.query.limit as string) || 20;
         

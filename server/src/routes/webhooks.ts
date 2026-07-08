@@ -7,7 +7,8 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { query } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
+import { deliverWebhook } from '../lib/webhook-delivery.js';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ const UpdateWebhookSchema = z.object({
 // GET /webhooks — List user's webhooks
 // ============================================================================
 
-router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/', requireAuth, requireFeature('webhooks'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(
             `SELECT id, name, url, events, is_active, failure_count, last_triggered_at, created_at
@@ -58,7 +59,7 @@ router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> 
 // POST /webhooks — Create webhook
 // ============================================================================
 
-router.post('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/', requireAuth, requireFeature('webhooks'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = CreateWebhookSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -92,7 +93,7 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
 // PATCH /webhooks/:id — Update webhook
 // ============================================================================
 
-router.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.patch('/:id', requireAuth, requireFeature('webhooks'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = UpdateWebhookSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -153,7 +154,7 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<v
 // DELETE /webhooks/:id — Delete webhook
 // ============================================================================
 
-router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', requireAuth, requireFeature('webhooks'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(
             `DELETE FROM webhooks WHERE id = $1 AND user_id = $2 RETURNING id`,
@@ -173,13 +174,13 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
 });
 
 // ============================================================================
-// POST /webhooks/:id/test — Send test webhook
+// POST /webhooks/:id/test — Send test webhook (tracked in delivery history)
 // ============================================================================
 
-router.post('/:id/test', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/:id/test', requireAuth, requireFeature('webhooks'), async (req: Request, res: Response): Promise<void> => {
     try {
         const webhookResult = await query(
-            `SELECT * FROM webhooks WHERE id = $1 AND user_id = $2`,
+            `SELECT id FROM webhooks WHERE id = $1 AND user_id = $2`,
             [req.params.id, req.user!.userId]
         );
 
@@ -188,58 +189,23 @@ router.post('/:id/test', requireAuth, async (req: Request, res: Response): Promi
             return;
         }
 
-        const webhook = webhookResult.rows[0];
-        const testPayload = {
-            event: 'webhook.test',
-            timestamp: new Date().toISOString(),
-            data: {
-                message: 'This is a test webhook from GapMiner',
-                webhookId: webhook.id,
-            },
-        };
+        const deliveryId = await deliverWebhook(req.params.id as string, 'webhook.test', {
+            message: 'This is a test webhook from GapMiner',
+            webhookId: req.params.id,
+        });
 
-        // Sign payload
-        const signature = crypto
-            .createHmac('sha256', webhook.secret)
-            .update(JSON.stringify(testPayload))
-            .digest('hex');
+        const delivery = await query(
+            `SELECT success, response_status FROM webhook_deliveries WHERE id = $1`,
+            [deliveryId]
+        );
+        const result = delivery.rows[0];
 
-        try {
-            const response = await fetch(webhook.url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-GapMiner-Signature': signature,
-                    'X-GapMiner-Event': 'webhook.test',
-                },
-                body: JSON.stringify(testPayload),
-                signal: AbortSignal.timeout(10000),
-            });
-
-            // Reset failure count on successful test
-            if (response.ok) {
-                await query(
-                    `UPDATE webhooks SET failure_count = 0, last_triggered_at = NOW() WHERE id = $1`,
-                    [webhook.id]
-                );
-            }
-
-            res.json({
-                success: response.ok,
-                statusCode: response.status,
-                message: response.ok ? 'Test webhook sent successfully' : 'Webhook endpoint returned an error',
-            });
-        } catch (fetchError: any) {
-            await query(
-                `UPDATE webhooks SET failure_count = failure_count + 1 WHERE id = $1`,
-                [webhook.id]
-            );
-
-            res.json({
-                success: false,
-                message: `Failed to reach webhook URL: ${fetchError.message}`,
-            });
-        }
+        res.json({
+            success: result.success,
+            statusCode: result.response_status,
+            deliveryId,
+            message: result.success ? 'Test webhook sent successfully' : 'Webhook endpoint returned an error',
+        });
     } catch (error) {
         console.error('[Webhooks] Test error:', error);
         res.status(500).json({ error: 'Failed to test webhook' });
@@ -247,10 +213,47 @@ router.post('/:id/test', requireAuth, async (req: Request, res: Response): Promi
 });
 
 // ============================================================================
+// POST /webhooks/:id/dispatch — Dispatch a real event (internal use)
+// ============================================================================
+
+router.post('/:id/dispatch', requireAuth, requireFeature('webhooks'), async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { event, payload } = req.body;
+        if (!event || !payload) {
+            res.status(400).json({ error: 'event and payload are required' });
+            return;
+        }
+
+        const webhookResult = await query(
+            `SELECT id, events FROM webhooks WHERE id = $1 AND user_id = $2 AND is_active = true`,
+            [req.params.id, req.user!.userId]
+        );
+
+        if (webhookResult.rows.length === 0) {
+            res.status(404).json({ error: 'Webhook not found or inactive' });
+            return;
+        }
+
+        const webhook = webhookResult.rows[0];
+        if (!webhook.events.includes(event)) {
+            res.status(400).json({ error: `Webhook is not subscribed to event '${event}'` });
+            return;
+        }
+
+        const deliveryId = await deliverWebhook(req.params.id as string, event, payload);
+
+        res.json({ deliveryId, message: 'Event dispatched' });
+    } catch (error) {
+        console.error('[Webhooks] Dispatch error:', error);
+        res.status(500).json({ error: 'Failed to dispatch event' });
+    }
+});
+
+// ============================================================================
 // POST /webhooks/:id/rotate-secret — Rotate webhook secret
 // ============================================================================
 
-router.post('/:id/rotate-secret', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/:id/rotate-secret', requireAuth, requireFeature('webhooks'), async (req: Request, res: Response): Promise<void> => {
     try {
         const newSecret = crypto.randomBytes(32).toString('hex');
 

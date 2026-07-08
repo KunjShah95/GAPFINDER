@@ -326,7 +326,7 @@ export function CrawlPage() {
                         <br />
                         <span className="gradient-text">from Multiple Papers</span>
                     </h1>
-                    <p className="text-lg text-[hsl(var(--muted-foreground))] max-w-2xl">
+                    <p className="text-lg text-[rgb(var(--text-secondary))] max-w-2xl">
                         Paste your paper URLs below (one per line) and we'll automatically
                         extract unsolved problems and limitations from each paper using AI.
                     </p>
@@ -353,7 +353,7 @@ https://aclanthology.org/...`}
                                     disabled={isProcessing}
                                 />
                                 <div className="flex items-center justify-between">
-                                    <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                                    <p className="text-sm text-[rgb(var(--text-secondary))]">
                                         {urls.split("\n").filter((u) => u.trim()).length} URL(s) entered
                                     </p>
                                     <Button
@@ -411,7 +411,7 @@ https://aclanthology.org/...`}
                                             </span>
                                         </div>
                                         <Progress value={progress} />
-                                        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                                        <p className="text-xs text-[rgb(var(--text-secondary))]">
                                             Crawling content with Firecrawl, analyzing gaps with Gemini AI...
                                         </p>
                                     </div>
@@ -424,19 +424,19 @@ https://aclanthology.org/...`}
                                 <Card>
                                     <CardContent className="pt-6 text-center">
                                         <div className="text-3xl font-bold">{results.length}</div>
-                                        <div className="text-sm text-[hsl(var(--muted-foreground))]">Papers</div>
+                                        <div className="text-sm text-[rgb(var(--text-secondary))]">Papers</div>
                                     </CardContent>
                                 </Card>
                                 <Card>
                                     <CardContent className="pt-6 text-center">
                                         <div className="text-3xl font-bold text-green-500">{successCount}</div>
-                                        <div className="text-sm text-[hsl(var(--muted-foreground))]">Success</div>
+                                        <div className="text-sm text-[rgb(var(--text-secondary))]">Success</div>
                                     </CardContent>
                                 </Card>
                                 <Card>
                                     <CardContent className="pt-6 text-center">
-                                        <div className="text-3xl font-bold text-[hsl(var(--brand-primary))]">{totalGaps}</div>
-                                        <div className="text-sm text-[hsl(var(--muted-foreground))]">Gaps Found</div>
+                                        <div className="text-3xl font-bold text-[rgb(251 146 60)]">{totalGaps}</div>
+                                        <div className="text-sm text-[rgb(var(--text-secondary))]">Gaps Found</div>
                                     </CardContent>
                                 </Card>
                             </div>
@@ -465,7 +465,7 @@ https://aclanthology.org/...`}
                                 <CardHeader className="pb-2">
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-sm flex items-center gap-2">
-                                            <Columns className="h-4 w-4 text-[hsl(var(--brand-primary))]" />
+                                            <Columns className="h-4 w-4 text-[rgb(251 146 60)]" />
                                             Comparison Insight
                                         </CardTitle>
                                         <Button variant="ghost" size="sm" onClick={() => setComparisonResult(null)} className="h-7 text-xs">Dismiss</Button>
@@ -485,7 +485,7 @@ https://aclanthology.org/...`}
                         <h2 className="font-semibold text-lg flex items-center justify-between">
                             Analysis Results
                             {results.length > 0 && (
-                                <span className="text-xs font-normal text-[hsl(var(--muted-foreground))]">
+                                <span className="text-xs font-normal text-[rgb(var(--text-secondary))]">
                                     Select 2 papers to compare
                                 </span>
                             )}
@@ -494,8 +494,8 @@ https://aclanthology.org/...`}
                         {results.length === 0 ? (
                             <Card className="border-dashed">
                                 <CardContent className="py-12 text-center">
-                                    <FileSearch className="h-12 w-12 mx-auto mb-4 text-[hsl(var(--muted-foreground))] opacity-50" />
-                                    <p className="text-[hsl(var(--muted-foreground))]">
+                                    <FileSearch className="h-12 w-12 mx-auto mb-4 text-[rgb(var(--text-secondary))] opacity-50" />
+                                    <p className="text-[rgb(var(--text-secondary))]">
                                         Results will appear here after crawling
                                     </p>
                                 </CardContent>
@@ -556,7 +556,7 @@ https://aclanthology.org/...`}
                                                                 href={paper.url}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="text-xs text-[hsl(var(--muted-foreground))] hover:underline flex items-center gap-1 mt-1"
+                                                                className="text-xs text-[rgb(var(--text-secondary))] hover:underline flex items-center gap-1 mt-1"
                                                                 onClick={(e) => e.stopPropagation()}
                                                             >
                                                                 {paper.url.slice(0, 50)}...
@@ -634,11 +634,11 @@ https://aclanthology.org/...`}
                                                                 exit={{ height: 0, opacity: 0 }}
                                                                 className="overflow-hidden"
                                                             >
-                                                                <div className="mt-4 space-y-3 pl-8 border-l-2 border-[hsl(var(--border))]">
+                                                                <div className="mt-4 space-y-3 pl-8 border-l-2 border-[rgb(255 255 255 / 0.08)]">
                                                                     {paper.gaps.map((gap) => (
                                                                         <div
                                                                             key={gap.id}
-                                                                            className="p-3 rounded-lg bg-[hsl(var(--muted))] relative group"
+                                                                            className="p-3 rounded-lg bg-[rgb(255 255 255 / 0.06)] relative group"
                                                                         >
                                                                             <div className="flex items-start justify-between gap-2">
                                                                                 <div>
@@ -648,7 +648,7 @@ https://aclanthology.org/...`}
                                                                                         >
                                                                                             {gap.type}
                                                                                         </Badge>
-                                                                                        <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                                                                                        <span className="text-xs text-[rgb(var(--text-secondary))]">
                                                                                             {Math.round(gap.confidence * 100)}% confidence
                                                                                         </span>
                                                                                         {checkGapRepeatCount(gap.problem) >= 2 && (
@@ -663,9 +663,9 @@ https://aclanthology.org/...`}
                                                                                         <motion.div
                                                                                             initial={{ opacity: 0, height: 0 }}
                                                                                             animate={{ opacity: 1, height: "auto" }}
-                                                                                            className="mt-3 p-3 rounded-md bg-[hsl(var(--background))] border border-[hsl(var(--border))] text-xs text-[hsl(var(--muted-foreground))]"
+                                                                                            className="mt-3 p-3 rounded-md bg-[rgb(var(--glass-bg))] border border-[rgb(255 255 255 / 0.08)] text-xs text-[rgb(var(--text-secondary))]"
                                                                                         >
-                                                                                            <div className="flex items-center gap-2 mb-2 font-medium text-[hsl(var(--foreground))]">
+                                                                                            <div className="flex items-center gap-2 mb-2 font-medium text-[rgb(var(--text-primary))]">
                                                                                                 <BrainCircuit className="h-3 w-3" />
                                                                                                 Depth Analysis
                                                                                             </div>
@@ -677,7 +677,7 @@ https://aclanthology.org/...`}
                                                                                         <Button
                                                                                             variant="ghost"
                                                                                             size="sm"
-                                                                                            className="mt-3 h-7 text-[10px] gap-1 hover:bg-[hsl(var(--background))]"
+                                                                                            className="mt-3 h-7 text-[10px] gap-1 hover:bg-[rgb(var(--glass-bg))]"
                                                                                             onClick={() => handleExplainUnsolved(gap)}
                                                                                             disabled={explainingId === gap.id}
                                                                                         >
@@ -700,10 +700,10 @@ https://aclanthology.org/...`}
                                                                                                 <Rocket className="h-3 w-3" />
                                                                                                 Startup Idea: {ideas[gap.id].idea}
                                                                                             </div>
-                                                                                            <p className="text-[hsl(var(--muted-foreground))] italic mb-1">
+                                                                                            <p className="text-[rgb(var(--text-secondary))] italic mb-1">
                                                                                                 Target: {ideas[gap.id].audience}
                                                                                             </p>
-                                                                                            <p className="text-[hsl(var(--muted-foreground))]">
+                                                                                            <p className="text-[rgb(var(--text-secondary))]">
                                                                                                 Why now: {ideas[gap.id].why_now}
                                                                                             </p>
                                                                                         </motion.div>
@@ -719,7 +719,7 @@ https://aclanthology.org/...`}
                                                                                                 <MessageSquare className="h-3 w-3" />
                                                                                                 Research Questions
                                                                                             </div>
-                                                                                            <ul className="list-disc pl-4 space-y-1 text-[hsl(var(--muted-foreground))]">
+                                                                                            <ul className="list-disc pl-4 space-y-1 text-[rgb(var(--text-secondary))]">
                                                                                                 {questions[gap.id].map((q, i) => <li key={i}>{q}</li>)}
                                                                                             </ul>
                                                                                         </motion.div>

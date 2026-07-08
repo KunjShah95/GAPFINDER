@@ -8,7 +8,7 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../db/client.js';
 import { requireAuth } from '../middleware/auth.js';
-import { runLatestPapersFetch } from '../services/latest-papers-cron.js';
+import { ensureLatestPapersTables, runLatestPapersFetch } from '../services/latest-papers-cron.js';
 
 const router = Router();
 
@@ -44,6 +44,8 @@ function getAllowedPublishersForTier(tier: string): string[] {
 
 router.get('/publishers', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
+        await ensureLatestPapersTables();
+
         // Last run info per publisher (from cron log)
         const logResult = await query(
             `SELECT status, finished_at, papers_fetched 
@@ -95,6 +97,8 @@ router.get('/publishers', requireAuth, async (req: Request, res: Response): Prom
 
 router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
     try {
+        await ensureLatestPapersTables();
+
         const tier = req.user!.tier;
         const tierAllowedPublishers = getAllowedPublishersForTier(tier);
 
@@ -197,6 +201,8 @@ router.post('/refresh', requireAuth, async (req: Request, res: Response): Promis
         return;
     }
     try {
+        await ensureLatestPapersTables();
+
         // Fire-and-forget — don't await so the HTTP response returns quickly
         runLatestPapersFetch().then(result => {
             console.log('[LatestPapers] Manual refresh complete:', result);

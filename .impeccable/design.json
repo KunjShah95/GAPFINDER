@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-04T23:16:00Z",
+  "title": "Design System: GapMiner",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Deep Navy",
+        "canonical": "#1e3a5f",
+        "tonalRamp": ["#0a1628", "#0f2744", "#163352", "#1e3a5f", "#2d5a8e", "#4a7ab5", "#7aa3d4", "#b3cced"]
+      },
+      "primary-light": {
+        "role": "primary",
+        "displayName": "Navy Light",
+        "canonical": "#2d5a8e"
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Navy Dark",
+        "canonical": "#0f2744"
+      },
+      "accent": {
+        "role": "accent",
+        "displayName": "Warm Amber",
+        "canonical": "#b45309",
+        "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fde68a"]
+      },
+      "accent-light": {
+        "role": "accent",
+        "displayName": "Amber Light",
+        "canonical": "#d97706"
+      },
+      "accent-dark": {
+        "role": "accent",
+        "displayName": "Amber Dark",
+        "canonical": "#92400e"
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#f8f9fb",
+        "tonalRamp": ["#111827", "#1f2937", "#374151", "#6b7280", "#9ca3af", "#d1d5db", "#e5e7eb", "#f8f9fb"]
+      },
+      "neutral-surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "#ffffff"
+      },
+      "neutral-ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#111827"
+      },
+      "neutral-ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#6b7280"
+      },
+      "success": {
+        "role": "success",
+        "displayName": "Success Green",
+        "canonical": "#166534"
+      },
+      "warning": {
+        "role": "warning",
+        "displayName": "Warning Amber",
+        "canonical": "#a16207"
+      },
+      "destructive": {
+        "role": "destructive",
+        "displayName": "Error Red",
+        "canonical": "#b91c1c"
+      },
+      "info": {
+        "role": "info",
+        "displayName": "Info Blue",
+        "canonical": "#1e40af"
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero section headings. Tight, authoritative." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings, page titles." },
+      "title": { "displayName": "Title", "purpose": "Card titles, subsection headings." },
+      "body": { "displayName": "Body", "purpose": "Paragraph text, descriptions. Max 75ch." },
+      "label": { "displayName": "Label", "purpose": "Buttons, inputs, nav items, badges." },
+      "mono": { "displayName": "Mono", "purpose": "Code, technical data, metadata." }
+    },
+    "shadows": [
+      { "name": "rest", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Default card state. Barely perceptible." },
+      { "name": "hover", "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)", "purpose": "Interactive feedback on hover." },
+      { "name": "elevated", "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)", "purpose": "Modals, dropdowns, popovers." },
+      { "name": "glow-focus", "value": "0 0 20px rgb(30 58 95 / 0.3)", "purpose": "Focus states on primary actions only." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions." },
+      { "name": "ease-out-quart", "value": "cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "Entrance animations, hover lift." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Micro-interactions, button states." },
+      { "name": "duration-base", "value": "200ms", "purpose": "Card hovers, input focus." },
+      { "name": "duration-slow", "value": "300ms", "purpose": "Modal transitions, page reveals." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary actions — submit, confirm, main CTA. Deep navy background, white text.",
+      "html": "<button class=\"ds-btn-primary\">Analyze Paper</button>",
+      "css": ".ds-btn-primary { background: #1e3a5f; color: #ffffff; padding: 12px 20px; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease; } .ds-btn-primary:hover { background: #0f2744; transform: translateY(-1px); box-shadow: 0 4px 12px rgb(30 58 95 / 0.25); } .ds-btn-primary:focus-visible { outline: 2px solid #1e3a5f; outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary actions — cancel, skip, less prominent choices.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { background: #e5e7eb; color: #111827; padding: 12px 20px; font-size: 0.875rem; font-weight: 500; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; transition: background 0.15s ease, transform 0.15s ease; } .ds-btn-secondary:hover { background: #d1d5db; transform: translateY(-1px); } .ds-btn-secondary:focus-visible { outline: 2px solid #1e3a5f; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Tertiary actions — text links, navigation items, low-emphasis choices.",
+      "html": "<button class=\"ds-btn-ghost\">Learn More</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: #111827; padding: 12px 20px; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s ease; } .ds-btn-ghost:hover { background: #e5e7eb; } .ds-btn-ghost:focus-visible { outline: 2px solid #1e3a5f; outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Content container — papers, gaps, data surfaces. Flat at rest, shadow on hover for interactive cards.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Research Gap</h3><p class=\"ds-card-body\">Limited evaluation benchmarks for cross-lingual transfer in low-resource settings.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #d1d5db; border-radius: 16px; padding: 24px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); transition: box-shadow 0.2s ease, transform 0.2s ease; } .ds-card:hover { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); transform: translateY(-2px); } .ds-card-title { font-size: 1.25rem; font-weight: 600; color: #111827; margin: 0 0 8px; } .ds-card-body { font-size: 1rem; color: #6b7280; line-height: 1.5; margin: 0; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard text input — search, forms, data entry. Subtle border, clean focus state.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Search papers...\" />",
+      "css": ".ds-input { width: 100%; padding: 12px 16px; font-size: 0.875rem; background: #f8f9fb; border: 1.5px solid #d1d5db; border-radius: 12px; color: #111827; transition: border-color 0.15s ease, box-shadow 0.15s ease; outline: none; } .ds-input:hover { border-color: #9ca3af; } .ds-input:focus { border-color: #1e3a5f; box-shadow: 0 0 0 3px rgb(30 58 95 / 0.15); } .ds-input::placeholder { color: #9ca3af; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge-primary",
+      "description": "Status indicator — category tags, status labels, metadata pills.",
+      "html": "<span class=\"ds-badge-primary\">Data Gap</span>",
+      "css": ".ds-badge-primary { display: inline-flex; align-items: center; padding: 4px 12px; font-size: 0.75rem; font-weight: 500; background: #1e3a5f; color: #ffffff; border-radius: 9999px; line-height: 1; }"
+    },
+    {
+      "name": "Navigation Sidebar",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Primary navigation — deep navy background, white text, active state highlight.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item active\" href=\"/dashboard\">Dashboard</a><a class=\"ds-nav-item\" href=\"/papers\">Papers</a><a class=\"ds-nav-item\" href=\"/gaps\">Research Gaps</a></nav>",
+      "css": ".ds-nav { background: #1e3a5f; padding: 16px 0; border-radius: 12px; } .ds-nav-item { display: block; padding: 10px 20px; font-size: 0.875rem; font-weight: 500; color: rgba(255, 255, 255, 0.7); text-decoration: none; transition: background 0.15s ease, color 0.15s ease; border-radius: 8px; margin: 2px 8px; } .ds-nav-item:hover { background: rgba(255, 255, 255, 0.1); color: #ffffff; } .ds-nav-item.active { background: rgba(255, 255, 255, 0.15); color: #ffffff; font-weight: 600; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lens",
+    "overview": "GapMiner's design strips away noise to reveal what matters in the research landscape. Like a well-calibrated optical instrument, the interface exists to bring hidden patterns into focus — not to call attention to itself. Every surface, every color, every typographic choice serves comprehension and navigation. The system rejects decoration that doesn't serve understanding.\n\nThe aesthetic is scholarly restraint: deep navy carries authority without coldness, warm amber accents signal discovery and warmth like aged paper bindings, and neutral surfaces recede so data stays front-and-center. No glassmorphism, no gradient text, no animated backgrounds. The best design pass removes something, not adds something.",
+    "keyCharacteristics": [
+      "Content-first: every pixel serves comprehension or navigation",
+      "Restrained surfaces: flat or subtly elevated, never decorative",
+      "Deep navy authority: scholarly without being institutional",
+      "Warm accents for discovery: amber signals insight, not decoration",
+      "Precision over polish: every component feels deliberate"
+    ],
+    "rules": [
+      { "name": "The Lens Rule", "body": "Colors exist to organize information, not to decorate. If a color doesn't help the user distinguish, prioritize, or act, remove it. The primary navy appears on ≤15% of any given screen; its restraint is its authority.", "section": "colors" },
+      { "name": "The Warmth Rule", "body": "Warm amber is reserved for moments of discovery and confirmation — a successful analysis, a highlighted gap, a completed action. It never appears as a background or decorative element. Its scarcity makes it meaningful.", "section": "colors" },
+      { "name": "The Disappearing Type Rule", "body": "The reader should notice the content, not the font. If someone comments on the typography, something is wrong. Inter's neutrality is the point — it carries information without calling attention to itself.", "section": "typography" },
+      { "name": "The Line Length Rule", "body": "Body text never exceeds 75ch. Research content is dense; giving it room to breathe is not optional. Short line lengths reduce cognitive load and improve comprehension.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. Shadows appear only as response to state (hover, elevation, focus) or structural need (modals, dropdowns). A card sitting idle should feel grounded, not floating.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use deep navy for structural elements (nav, primary buttons, headings) — it carries scholarly authority",
+      "Do use warm amber sparingly for moments of discovery",
+      "Do keep body text at 4.5:1 contrast minimum against its background",
+      "Do use flat surfaces as the default. Shadows are feedback, not decoration",
+      "Do cap body line length at 65–75ch for readability",
+      "Do use text-wrap: balance on headings and text-wrap: pretty on long prose",
+      "Do include @media (prefers-reduced-motion: reduce) alternatives for all animations"
+    ],
+    "donts": [
+      "Don't use gradient text (background-clip: text). It's decorative, never meaningful.",
+      "Don't use glassmorphism (backdrop-filter blur on cards). It's decorative, not functional.",
+      "Don't use glowing borders or animated gradients. These are AI slop tells.",
+      "Don't use cream, sand, or warm-tinted body backgrounds.",
+      "Don't use border-left or border-right greater than 1px as a colored accent stripe.",
+      "Don't pair similar fonts. Inter is the only family; hierarchy comes from weight and size.",
+      "Don't animate CSS layout properties unless truly needed.",
+      "Don't use bounce or elastic easing. Use ease-out with exponential curves.",
+      "Don't put border: 1px solid X + box-shadow with blur ≥ 16px on the same element.",
+      "Don't use border-radius: 24px+ on cards. Cards top out at 16px radius."
+    ]
+  }
+}

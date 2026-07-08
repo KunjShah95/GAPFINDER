@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { query, transaction } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -29,7 +29,7 @@ const UpdateMemberSchema = z.object({
 // GET /api/orgs — List user's organizations
 // ============================================================================
 
-router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/', requireAuth, requireFeature('organizations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -54,7 +54,7 @@ router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> 
 // POST /api/orgs — Create organization
 // ============================================================================
 
-router.post('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/', requireAuth, requireFeature('organizations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = CreateOrgSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -95,7 +95,7 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
 // GET /api/orgs/:id — Get organization details
 // ============================================================================
 
-router.get('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', requireAuth, requireFeature('organizations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -140,7 +140,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response): Promise<voi
 // GET /api/orgs/:id/dashboard — Get org analytics dashboard
 // ============================================================================
 
-router.get('/:id/dashboard', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/dashboard', requireAuth, requireFeature('organizations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const period = req.query.period as string || '30';
@@ -213,7 +213,7 @@ router.get('/:id/dashboard', requireAuth, async (req: Request, res: Response): P
 // GET /api/orgs/:id/gaps — Get all gaps from org members
 // ============================================================================
 
-router.get('/:id/gaps', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/gaps', requireAuth, requireFeature('organizations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const page = parseInt(req.query.page as string) || 1;
@@ -256,7 +256,7 @@ router.get('/:id/gaps', requireAuth, async (req: Request, res: Response): Promis
 // DELETE /api/orgs/:id/members/:userId — Remove member
 // ============================================================================
 
-router.delete('/:id/members/:userId', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id/members/:userId', requireAuth, requireFeature('organizations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -295,7 +295,7 @@ router.delete('/:id/members/:userId', requireAuth, async (req: Request, res: Res
 // DELETE /api/orgs/:id — Delete organization
 // ============================================================================
 
-router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', requireAuth, requireFeature('organizations'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 

@@ -123,7 +123,7 @@ async function seed() {
             await client.query(
                 `INSERT INTO collections (user_id, name, description, color, starred)
                  VALUES ($1, $2, $3, $4, $5)`,
-                [userId, 'Transformer Research', 'Key papers on transformer architectures and scaling', '#6366f1', true]
+                [userId, 'Transformer Research', 'Key papers on transformer architectures and scaling', '#f97316', true]
             );
 
             console.log('[Seed] ✅ Demo data created successfully');

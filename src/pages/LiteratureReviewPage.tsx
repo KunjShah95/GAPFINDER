@@ -24,8 +24,8 @@ export default function LiteratureReviewPage() {
           <p className="text-slate-400 mt-1">Generate comprehensive "Related Work" sections</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"><Download className="w-4 h-4" /> Export</button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium"><Sparkles className="w-4 h-4" /> Generate Review</button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors"><Download className="w-4 h-4" /> Export</button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium"><Sparkles className="w-4 h-4" /> Generate Review</button>
         </div>
       </div>
 

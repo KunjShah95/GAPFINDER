@@ -107,7 +107,7 @@ export async function requireApiKey(
         };
 
         // Log the API call
-        await logApiUsage(apiKey.id, req.path, req.method, 200);
+        await logApiUsage(apiKey.id, apiKey.user_id, req.path, req.method, 200);
 
         next();
     } catch (error) {
@@ -140,15 +140,16 @@ async function checkRateLimit(apiKeyId: string, limit: number): Promise<{ allowe
 
 async function logApiUsage(
     apiKeyId: string,
+    userId: string,
     endpoint: string,
     method: string,
     statusCode: number
 ): Promise<void> {
     try {
         await query(
-            `INSERT INTO api_usage_logs (api_key_id, endpoint, method, status_code)
-             VALUES ($1, $2, $3, $4)`,
-            [apiKeyId, endpoint, method, statusCode]
+            `INSERT INTO api_usage_logs (api_key_id, user_id, endpoint, method, status_code)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [apiKeyId, userId, endpoint, method, statusCode]
         );
 
         await query(

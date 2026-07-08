@@ -1,0 +1,1855 @@
+openapi: 3.0.3
+info:
+  title: GapMiner API
+  description: |
+    GapMiner is a research gap discovery platform. This API covers paper management,
+    gap extraction, AI analysis, collections, search, community features, analytics,
+    and feature gating.
+  version: 1.0.0
+  contact:
+    name: GapMiner Support
+    url: https://github.com/anomalyco/gapminer
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001/api
+    description: Local development
+  - url: https://api.gapminer.com/v1
+    description: Production
+
+tags:
+  - name: Auth
+    description: Registration, login, token refresh, profile
+  - name: Papers
+    description: CRUD operations on research papers
+  - name: Gaps
+    description: Research gap discovery and voting
+  - name: AI
+    description: AI-powered scraping, analysis, and chat
+  - name: Collections
+    description: Organize papers and gaps into collections
+  - name: Search
+    description: Full-text and cross-entity search
+  - name: Community
+    description: Gap sharing, following, leaderboard
+  - name: Analytics
+    description: Dashboard metrics and trend analysis
+  - name: Feature Gates
+    description: Tier-based feature access and quotas
+  - name: Health
+    description: Service health checks
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ── Health ──────────────────────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [Health]
+      summary: Server health check
+      security: []
+      operationId: getHealth
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ── Auth ────────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with email and password
+      security: []
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      operationId: getMe
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/profile:
+    patch:
+      tags: [Auth]
+      summary: Update user profile
+      operationId: updateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Papers ──────────────────────────────────────────────────────────────────
+  /papers:
+    get:
+      tags: [Papers]
+      summary: List user papers with search
+      operationId: listPapers
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Full-text search query
+        - name: venue
+          in: query
+          schema: { type: string }
+        - name: year
+          in: query
+          schema: { type: integer }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [created_at, title, year, citation_count], default: created_at }
+        - name: order
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+      responses:
+        "200":
+          description: Paginated list of papers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  papers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Paper"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+    post:
+      tags: [Papers]
+      summary: Create a new paper
+      operationId: createPaper
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaperRequest"
+      responses:
+        "201":
+          description: Paper created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /papers/{id}:
+    parameters:
+      - $ref: "#/components/parameters/PaperId"
+    get:
+      tags: [Papers]
+      summary: Get paper details with gaps
+      operationId: getPaper
+      responses:
+        "200":
+          description: Paper with associated gaps
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Paper"
+                  - type: object
+                    properties:
+                      gaps:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Gap"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Papers]
+      summary: Delete a paper and its gaps
+      operationId: deletePaper
+      responses:
+        "200":
+          description: Paper deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Gaps ────────────────────────────────────────────────────────────────────
+  /gaps:
+    get:
+      tags: [Gaps]
+      summary: List user gaps with filtering
+      operationId: listGaps
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: type
+          in: query
+          schema: { type: string, enum: [data, compute, evaluation, theory, deployment, methodology] }
+        - name: impact
+          in: query
+          schema: { type: string, enum: [low, medium, high] }
+        - name: resolved
+          in: query
+          schema: { type: string, enum: ["true", "false"] }
+        - name: paperId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Paginated list of gaps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gaps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Gap"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+    post:
+      tags: [Gaps]
+      summary: Create a gap
+      operationId: createGap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGapRequest"
+      responses:
+        "201":
+          description: Gap created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gap"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /gaps/batch:
+    post:
+      tags: [Gaps]
+      summary: Create multiple gaps from analysis
+      operationId: createGapsBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paperId, gaps]
+              properties:
+                paperId:
+                  type: string
+                  format: uuid
+                gaps:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/CreateGapRequest"
+      responses:
+        "201":
+          description: Gaps created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gaps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Gap"
+                  count:
+                    type: integer
+
+  /gaps/{id}:
+    parameters:
+      - $ref: "#/components/parameters/GapId"
+    delete:
+      tags: [Gaps]
+      summary: Delete a gap
+      operationId: deleteGap
+      responses:
+        "200":
+          description: Gap deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /gaps/{id}/vote:
+    parameters:
+      - $ref: "#/components/parameters/GapId"
+    post:
+      tags: [Gaps]
+      summary: Upvote or downvote a gap
+      operationId: voteGap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vote]
+              properties:
+                vote:
+                  type: integer
+                  enum: [1, -1]
+      responses:
+        "200":
+          description: Vote recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  upvotes:
+                    type: integer
+
+  /gaps/{id}/resolve:
+    parameters:
+      - $ref: "#/components/parameters/GapId"
+    patch:
+      tags: [Gaps]
+      summary: Mark a gap as resolved
+      operationId: resolveGap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolvedBy:
+                  type: string
+      responses:
+        "200":
+          description: Gap resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Gap"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /gaps/stats/overview:
+    get:
+      tags: [Gaps]
+      summary: Gap statistics overview
+      operationId: getGapStats
+      responses:
+        "200":
+          description: Gap statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_gaps: { type: integer }
+                  resolved_gaps: { type: integer }
+                  high_impact: { type: integer }
+                  medium_impact: { type: integer }
+                  low_impact: { type: integer }
+                  data_gaps: { type: integer }
+                  compute_gaps: { type: integer }
+                  evaluation_gaps: { type: integer }
+                  theory_gaps: { type: integer }
+                  deployment_gaps: { type: integer }
+                  methodology_gaps: { type: integer }
+                  avg_confidence: { type: number }
+                  total_upvotes: { type: integer }
+
+  # ── AI ──────────────────────────────────────────────────────────────────────
+  /ai/health:
+    get:
+      tags: [AI]
+      summary: AI service health check
+      security: []
+      operationId: getAIHealth
+      responses:
+        "200":
+          description: AI health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  geminiConfigured: { type: boolean }
+                  firecrawlConfigured: { type: boolean }
+                  llmCache: { type: object }
+                  modelRouting: { type: object }
+
+  /ai/scrape:
+    post:
+      tags: [AI]
+      summary: Scrape a paper URL via Firecrawl
+      operationId: scrapeUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          description: Scraped content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+                  title: { type: string }
+                  content: { type: string }
+                  venue: { type: string }
+                  year: { type: string }
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /ai/analyze-gaps:
+    post:
+      tags: [AI]
+      summary: Extract research gaps from paper content
+      operationId: analyzeGaps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  minLength: 10
+                  maxLength: 500000
+      responses:
+        "200":
+          description: Extracted gaps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gaps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AIGap"
+
+  /ai/chat:
+    post:
+      tags: [AI]
+      summary: Chat with AI about papers
+      operationId: aiChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                papers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      title: { type: string }
+                      content: { type: string }
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string }
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response: { type: string }
+
+  /ai/prompt:
+    post:
+      tags: [AI]
+      summary: Generic AI prompt (proxied to configured LLM)
+      operationId: aiPrompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIPromptRequest"
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text: { type: string }
+
+  /ai/explain-unsolved:
+    post:
+      tags: [AI]
+      summary: Explain why a problem remains unsolved
+      operationId: explainUnsolved
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string }
+      responses:
+        "200":
+          description: Explanation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  explanation: { type: string }
+
+  /ai/generate-proposal:
+    post:
+      tags: [AI]
+      summary: Generate a research proposal
+      operationId: generateProposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gap]
+              properties:
+                gap: { type: string }
+      responses:
+        "200":
+          description: Research proposal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title: { type: string }
+                  abstract: { type: string }
+                  motivation: { type: string }
+                  methodology: { type: string }
+                  timeline: { type: string }
+                  expectedOutcomes: { type: array, items: { type: string } }
+                  resources: { type: string }
+
+  /ai/compare-papers:
+    post:
+      tags: [AI]
+      summary: Compare multiple papers
+      operationId: comparePapers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [papers]
+              properties:
+                papers:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    properties:
+                      title: { type: string }
+                      content: { type: string }
+      responses:
+        "200":
+          description: Comparison result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  comparison: { type: string }
+
+  /ai/generate-startup-idea:
+    post:
+      tags: [AI]
+      summary: Generate startup idea from a research gap
+      operationId: generateStartupIdea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string }
+      responses:
+        "200":
+          description: Startup idea
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  idea: { type: string }
+                  audience: { type: string }
+                  why_now: { type: string }
+                  moat: { type: string }
+                  mvp: { type: string }
+
+  /ai/generate-research-questions:
+    post:
+      tags: [AI]
+      summary: Generate research questions from a gap
+      operationId: generateResearchQuestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string }
+      responses:
+        "200":
+          description: Research questions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questions:
+                    type: array
+                    items: { type: string }
+
+  /ai/red-team-analysis:
+    post:
+      tags: [AI]
+      summary: Red-team a research direction
+      operationId: redTeamAnalysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gap]
+              properties:
+                gap: { type: string }
+      responses:
+        "200":
+          description: Failure mode analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  analysis:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        failure_mode: { type: string }
+                        likelihood: { type: string, enum: [low, medium, high] }
+                        severity: { type: string, enum: [low, medium, high] }
+                        mitigation: { type: string }
+
+  /ai/predict-impact:
+    post:
+      tags: [AI]
+      summary: Predict academic/industry impact
+      operationId: predictImpact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gap]
+              properties:
+                gap: { type: string }
+      responses:
+        "200":
+          description: Impact prediction
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hype_score: { type: integer }
+                  reality_score: { type: integer }
+                  predicted_citations: { type: string }
+                  justification: { type: string }
+                  timeline: { type: string }
+
+  /ai/embeddings:
+    post:
+      tags: [AI]
+      summary: Generate text embeddings
+      operationId: generateEmbeddings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                model:
+                  type: string
+                  default: text-embedding-004
+      responses:
+        "200":
+          description: Embedding vectors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  values:
+                    type: array
+                    items: { type: number }
+                  dimensions: { type: integer }
+
+  # ── Collections ─────────────────────────────────────────────────────────────
+  /collections:
+    get:
+      tags: [Collections]
+      summary: List user collections
+      operationId: listCollections
+      responses:
+        "200":
+          description: List of collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Collection"
+    post:
+      tags: [Collections]
+      summary: Create a collection
+      operationId: createCollection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCollectionRequest"
+      responses:
+        "201":
+          description: Collection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+
+  /collections/{id}/papers:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Collections]
+      summary: Add paper to collection
+      operationId: addPaperToCollection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paperId]
+              properties:
+                paperId:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Paper added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /collections/{id}/gaps:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Collections]
+      summary: Add gap to collection
+      operationId: addGapToCollection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [gapId]
+              properties:
+                gapId:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Gap added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /collections/{id}/star:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Collections]
+      summary: Toggle collection star
+      operationId: toggleCollectionStar
+      responses:
+        "200":
+          description: Star toggled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  starred: { type: boolean }
+
+  /collections/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Collections]
+      summary: Delete a collection
+      operationId: deleteCollection
+      responses:
+        "200":
+          description: Collection deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Search ──────────────────────────────────────────────────────────────────
+  /search:
+    get:
+      tags: [Search]
+      summary: Universal search across papers, gaps, collections
+      operationId: search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2 }
+        - name: types
+          in: query
+          schema: { type: string, default: "papers,gaps,collections" }
+          description: Comma-separated entity types
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query: { type: string }
+                  totalResults: { type: integer }
+                  results:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: object }
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /search/suggestions:
+    get:
+      tags: [Search]
+      summary: Auto-complete suggestions
+      operationId: searchSuggestions
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2 }
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        text: { type: string }
+                        type: { type: string, enum: [paper, gap] }
+                        id: { type: string }
+
+  /search/similar-gaps:
+    get:
+      tags: [Search]
+      summary: Find similar gaps by text similarity
+      operationId: searchSimilarGaps
+      parameters:
+        - name: gapId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Similar gaps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  similarGaps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Gap"
+                  sourceGapId: { type: string }
+
+  /search/trending:
+    get:
+      tags: [Search]
+      summary: Trending community topics
+      operationId: searchTrending
+      security: []
+      responses:
+        "200":
+          description: Trending topics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trending:
+                    type: array
+                    items: { type: object }
+                  trendingCategories:
+                    type: array
+                    items: { type: object }
+
+  # ── Community ───────────────────────────────────────────────────────────────
+  /community/gaps:
+    get:
+      tags: [Community]
+      summary: Browse community-shared gaps
+      operationId: listCommunityGaps
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - name: type
+          in: query
+          schema: { type: string, enum: [data, compute, evaluation, theory, deployment, methodology] }
+        - name: impact
+          in: query
+          schema: { type: string, enum: [low, medium, high] }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [upvotes, recent, views], default: upvotes }
+      responses:
+        "200":
+          description: Community gaps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gaps:
+                    type: array
+                    items: { type: object }
+                  pagination:
+                    type: object
+                    properties:
+                      page: { type: integer }
+                      limit: { type: integer }
+    post:
+      tags: [Community]
+      summary: Share a gap to community
+      operationId: shareGap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareGapRequest"
+      responses:
+        "201":
+          description: Gap shared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicGap: { type: object }
+                  message: { type: string }
+
+  /community/gaps/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Community]
+      summary: Unshare a gap from community
+      operationId: unshareGap
+      responses:
+        "200":
+          description: Gap unshared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /community/leaderboard:
+    get:
+      tags: [Community]
+      summary: Community leaderboard
+      operationId: getLeaderboard
+      security: []
+      parameters:
+        - name: period
+          in: query
+          schema: { type: string, enum: [all_time, weekly, monthly], default: all_time }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leaderboard:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rank: { type: integer }
+                        user_id: { type: string }
+                        name: { type: string }
+                        avatar_url: { type: string }
+                        institution: { type: string }
+                        shared_gaps: { type: integer }
+                        total_upvotes: { type: integer }
+                        total_views: { type: integer }
+                  period: { type: string }
+
+  /community/follow/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Community]
+      summary: Follow a user
+      operationId: followUser
+      responses:
+        "200":
+          description: Now following
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+    delete:
+      tags: [Community]
+      summary: Unfollow a user
+      operationId: unfollowUser
+      responses:
+        "200":
+          description: Unfollowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /community/following:
+    get:
+      tags: [Community]
+      summary: Get followed users
+      operationId: getFollowing
+      responses:
+        "200":
+          description: Followed users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  following:
+                    type: array
+                    items: { type: object }
+
+  /community/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Community]
+      summary: Get user public profile
+      operationId: getUserProfile
+      security: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { type: object }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /community/profile:
+    get:
+      tags: [Community]
+      summary: Get own community profile
+      operationId: getOwnProfile
+      responses:
+        "200":
+          description: Own profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profile: { type: object }
+    put:
+      tags: [Community]
+      summary: Update own community profile
+      operationId: updateOwnProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommunityProfileUpdate"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── Analytics ───────────────────────────────────────────────────────────────
+  /analytics/overview:
+    get:
+      tags: [Analytics]
+      summary: Comprehensive dashboard analytics
+      operationId: getAnalyticsOverview
+      parameters:
+        - name: period
+          in: query
+          schema: { type: integer, default: 30 }
+          description: Number of days to look back
+      responses:
+        "200":
+          description: Dashboard analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  papers: { type: object }
+                  gaps: { type: object }
+                  timeline: { type: array, items: { type: object } }
+                  topVenues: { type: array, items: { type: object } }
+                  recentActivity: { type: array, items: { type: object } }
+                  period: { type: integer }
+
+  /analytics/trends:
+    get:
+      tags: [Analytics]
+      summary: Gap trend analysis over time
+      operationId: getAnalyticsTrends
+      parameters:
+        - name: groupBy
+          in: query
+          schema: { type: string, enum: [day, week, month], default: week }
+        - name: months
+          in: query
+          schema: { type: integer, default: 6 }
+      responses:
+        "200":
+          description: Trend data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trends: { type: array, items: { type: object } }
+                  groupBy: { type: string }
+                  months: { type: integer }
+
+  /analytics/research-velocity:
+    get:
+      tags: [Analytics]
+      summary: Research velocity metrics
+      operationId: getResearchVelocity
+      responses:
+        "200":
+          description: Velocity data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  weekly: { type: array, items: { type: object } }
+                  overallVelocity: { type: string }
+
+  /analytics/gap-landscape:
+    get:
+      tags: [Analytics]
+      summary: Gap category landscape
+      operationId: getGapLandscape
+      responses:
+        "200":
+          description: Landscape data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  landscape: { type: array, items: { type: object } }
+
+  /analytics/collaboration-stats:
+    get:
+      tags: [Analytics]
+      summary: Community engagement metrics
+      operationId: getCollaborationStats
+      responses:
+        "200":
+          description: Collaboration stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sharedGaps: { type: object }
+                  followers: { type: integer }
+                  following: { type: integer }
+                  votesGiven: { type: integer }
+
+  /analytics/llm-usage:
+    get:
+      tags: [Analytics]
+      summary: LLM call logs and cost tracking
+      operationId: getLLMUsage
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, default: 30 }
+      responses:
+        "200":
+          description: LLM usage data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary: { type: object }
+                  daily: { type: array, items: { type: object } }
+                  byOperation: { type: array, items: { type: object } }
+
+  # ── Feature Gates ───────────────────────────────────────────────────────────
+  /feature-gates:
+    get:
+      tags: [Feature Gates]
+      summary: Get all features and current user access
+      operationId: getFeatureGates
+      responses:
+        "200":
+          description: Feature gates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tier: { type: string }
+                  available: { type: array, items: { type: string } }
+                  locked:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        feature: { type: string }
+                        requiredTier: { type: string }
+                  quotas: { type: object }
+                  tiers: { type: array, items: { type: object } }
+
+  /feature-gates/check/{feature}:
+    parameters:
+      - name: feature
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Feature Gates]
+      summary: Check if current user has a feature
+      operationId: checkFeature
+      responses:
+        "200":
+          description: Feature check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  feature: { type: string }
+                  hasAccess: { type: boolean }
+                  requiredTier: { type: string }
+                  currentTier: { type: string }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /feature-gates/quotas:
+    get:
+      tags: [Feature Gates]
+      summary: Get current usage and quotas
+      operationId: getQuotas
+      responses:
+        "200":
+          description: Usage quotas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tier: { type: string }
+                  quotas:
+                    type: object
+                    properties:
+                      papersPerMonth:
+                        $ref: "#/components/schemas/QuotaUsage"
+                      gapExtractionsPerMonth:
+                        $ref: "#/components/schemas/QuotaUsage"
+                      apiCallsPerDay:
+                        $ref: "#/components/schemas/QuotaUsage"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ══════════════════════════════════════════════════════════════════════════════
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from /auth/login or /auth/register
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    LimitParam:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    PaperId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    GapId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  schemas:
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    TokenPair:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+
+    AuthTokens:
+      allOf:
+        - $ref: "#/components/schemas/TokenPair"
+        - type: object
+          properties:
+            user:
+              $ref: "#/components/schemas/UserSummary"
+
+    UserSummary:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: string }
+        role: { type: string }
+        tier: { type: string }
+        avatar: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: string }
+        role: { type: string }
+        avatar: { type: string }
+        isVerified: { type: boolean }
+        tier: { type: string }
+        subscriptionStatus: { type: string }
+        currentPeriodEnd: { type: string, format: date-time }
+        xp:
+          type: object
+          properties:
+            totalXp: { type: integer }
+            level: { type: integer }
+            currentStreak: { type: integer }
+            papersAnalyzed: { type: integer }
+            gapsFound: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        avatar: { type: string, format: uri }
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string, minLength: 8 }
+
+    # ── Papers ────────────────────────────────────────────────────────────────
+    CreatePaperRequest:
+      type: object
+      required: [url, title]
+      properties:
+        url: { type: string, format: uri }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        abstract: { type: string }
+        authors: { type: array, items: { type: string } }
+        venue: { type: string }
+        year: { type: integer, minimum: 1900, maximum: 2100 }
+        content: { type: string }
+        source: { type: string }
+        published_at: { type: string, format: date-time }
+        metadata: { type: object, additionalProperties: true }
+
+    Paper:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string }
+        title: { type: string }
+        abstract: { type: string }
+        authors: { type: array, items: { type: string } }
+        venue: { type: string }
+        year: { type: integer }
+        citation_count: { type: integer }
+        metadata: { type: object }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        gap_count: { type: integer }
+
+    # ── Gaps ──────────────────────────────────────────────────────────────────
+    CreateGapRequest:
+      type: object
+      required: [paperId, problem, type]
+      properties:
+        paperId: { type: string, format: uuid }
+        problem: { type: string, minLength: 10, maxLength: 5000 }
+        type: { type: string, enum: [data, compute, evaluation, theory, deployment, methodology] }
+        confidence: { type: number, minimum: 0, maximum: 1, default: 0.5 }
+        impactScore: { type: string, enum: [low, medium, high], default: medium }
+        difficulty: { type: string, enum: [low, medium, high], default: medium }
+        assumptions: { type: array, items: { type: string } }
+        failures: { type: array, items: { type: string } }
+        datasetGaps: { type: array, items: { type: string } }
+        evaluationCritique: { type: string }
+
+    Gap:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        paper_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        problem: { type: string }
+        type: { type: string }
+        confidence: { type: number }
+        impact_score: { type: string }
+        difficulty: { type: string }
+        assumptions: { type: array, items: { type: string } }
+        failures: { type: array, items: { type: string } }
+        dataset_gaps: { type: array, items: { type: string } }
+        evaluation_critique: { type: string }
+        upvotes: { type: integer }
+        is_resolved: { type: boolean }
+        created_at: { type: string, format: date-time }
+        paper_title: { type: string }
+        paper_url: { type: string }
+
+    AIGap:
+      type: object
+      properties:
+        id: { type: string }
+        problem: { type: string }
+        type: { type: string }
+        confidence: { type: number }
+        impactScore: { type: string }
+        difficulty: { type: string }
+        assumptions: { type: array, items: { type: string } }
+        failures: { type: array, items: { type: string } }
+        datasetGaps: { type: array, items: { type: string } }
+        evaluationCritique: { type: string }
+
+    # ── AI ────────────────────────────────────────────────────────────────────
+    AIPromptRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+          maxLength: 200000
+        model: { type: string }
+        paperCount: { type: integer, minimum: 0, maximum: 50 }
+
+    # ── Collections ───────────────────────────────────────────────────────────
+    CreateCollectionRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: string, maxLength: 1000 }
+        color: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+
+    Collection:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        color: { type: string }
+        starred: { type: boolean }
+        created_at: { type: string, format: date-time }
+        paper_count: { type: integer }
+        gap_count: { type: integer }
+
+    # ── Community ─────────────────────────────────────────────────────────────
+    ShareGapRequest:
+      type: object
+      required: [gapId, shareReason]
+      properties:
+        gapId: { type: string, format: uuid }
+        shareReason: { type: string, minLength: 10, maxLength: 1000 }
+
+    CommunityProfileUpdate:
+      type: object
+      properties:
+        bio: { type: string, maxLength: 500 }
+        institution: { type: string, maxLength: 255 }
+        avatarUrl: { type: string, format: uri }
+        website: { type: string, format: uri }
+        github: { type: string, maxLength: 100 }
+        twitter: { type: string, maxLength: 100 }
+        linkedin: { type: string, maxLength: 100 }
+        isPublic: { type: boolean }
+
+    # ── Feature Gates ─────────────────────────────────────────────────────────
+    QuotaUsage:
+      type: object
+      properties:
+        limit: { type: integer, description: "-1 means unlimited" }
+        used: { type: integer }
+        remaining: { type: integer, description: "-1 means unlimited" }
+
+    # ── Shared ────────────────────────────────────────────────────────────────
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+
+    MessageResponse:
+      type: object
+      properties:
+        message: { type: string }
+
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [healthy, degraded] }
+        timestamp: { type: string, format: date-time }
+        version: { type: string }
+        database: { type: object }
+        services: { type: object }
+
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        details: { type: array, items: { type: object } }
+        code: { type: string }
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying
+        X-RateLimit-Remaining:
+          schema: { type: integer }
+        X-RateLimit-Reset:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: External service not configured
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

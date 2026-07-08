@@ -10,12 +10,12 @@ CREATE TABLE IF NOT EXISTS tags (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        VARCHAR(50) NOT NULL,
-    color       VARCHAR(7) DEFAULT '#6366f1',
+    color       VARCHAR(7) DEFAULT '#f97316',
     created_at  TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, name)
 );
 
-CREATE INDEX idx_tags_user ON tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
 
 -- ============================================================================
 -- Bookmarks
@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     UNIQUE(user_id, entity_id, entity_type)
 );
 
-CREATE INDEX idx_bookmarks_user ON bookmarks(user_id);
-CREATE INDEX idx_bookmarks_entity ON bookmarks(entity_id, entity_type);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_entity ON bookmarks(entity_id, entity_type);
 
 -- ============================================================================
 -- Bookmark-Tag join table
@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS bookmark_tags (
     UNIQUE(bookmark_id, tag_id)
 );
 
-CREATE INDEX idx_bookmark_tags_bookmark ON bookmark_tags(bookmark_id);
-CREATE INDEX idx_bookmark_tags_tag ON bookmark_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_bookmark_tags_bookmark ON bookmark_tags(bookmark_id);
+CREATE INDEX IF NOT EXISTS idx_bookmark_tags_tag ON bookmark_tags(tag_id);
 
 -- ============================================================================
 -- Annotations
@@ -65,9 +65,15 @@ CREATE TABLE IF NOT EXISTS annotations (
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_annotations_user ON annotations(user_id);
-CREATE INDEX idx_annotations_paper ON annotations(paper_id);
-CREATE INDEX idx_annotations_user_paper ON annotations(user_id, paper_id);
+ALTER TABLE annotations ADD COLUMN IF NOT EXISTS paper_id UUID REFERENCES papers(id) ON DELETE CASCADE;
+ALTER TABLE annotations ADD COLUMN IF NOT EXISTS highlight_text TEXT;
+ALTER TABLE annotations ADD COLUMN IF NOT EXISTS start_offset INTEGER;
+ALTER TABLE annotations ADD COLUMN IF NOT EXISTS end_offset INTEGER;
+ALTER TABLE annotations ADD COLUMN IF NOT EXISTS section VARCHAR(255);
+
+CREATE INDEX IF NOT EXISTS idx_annotations_user ON annotations(user_id);
+CREATE INDEX IF NOT EXISTS idx_annotations_paper ON annotations(paper_id);
+CREATE INDEX IF NOT EXISTS idx_annotations_user_paper ON annotations(user_id, paper_id);
 
 -- ============================================================================
 -- Achievements (expanded)
@@ -83,7 +89,7 @@ CREATE TABLE IF NOT EXISTS achievements (
     UNIQUE(user_id, achievement_id)
 );
 
-CREATE INDEX idx_achievements_user ON achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_achievements_user ON achievements(user_id);
 
 -- ============================================================================
 -- Ensure user_xp has the needed columns

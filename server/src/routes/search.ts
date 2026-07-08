@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { Router, Request, Response } from 'express';
-import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import { requireAuth, optionalAuth, requireFeature } from '../middleware/auth.js';
 import { query } from '../db/client.js';
 
 const router = Router();
@@ -13,7 +13,7 @@ const router = Router();
 // GET /search — Universal search across papers, gaps, collections, users
 // ============================================================================
 
-router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/', requireAuth, requireFeature('basic_search'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const q = req.query.q as string;
@@ -114,7 +114,7 @@ router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> 
 // GET /search/suggestions — Auto-complete suggestions as user types
 // ============================================================================
 
-router.get('/suggestions', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/suggestions', requireAuth, requireFeature('basic_search'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const q = req.query.q as string;
@@ -157,7 +157,7 @@ router.get('/suggestions', requireAuth, async (req: Request, res: Response): Pro
 // GET /search/similar-gaps — Find similar gaps using text similarity
 // ============================================================================
 
-router.get('/similar-gaps', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/similar-gaps', requireAuth, requireFeature('basic_search'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const gapId = req.query.gapId as string;

@@ -9,6 +9,8 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { query, transaction } from '../db/client.js';
 import { requireAuth } from '../middleware/auth.js';
+import { cacheGet, cacheSet } from '../lib/cache.js';
+import { enqueuePublicAnalysisJob } from '../queues/public-analysis.queue.js';
 
 const router = Router();
 
@@ -17,7 +19,7 @@ const router = Router();
 // ============================================================================
 
 // Re-export from middleware
-export { ApiKeyUser } from '../middleware/api-auth.js';
+export type { ApiKeyUser } from '../middleware/api-auth.js';
 
 // Use the apiKey from middleware
 declare module '../middleware/api-auth.js' {
@@ -354,6 +356,12 @@ router.get('/leaderboard', requireApiKey, requirePermission('read'), async (req:
         if (!parsed.success) { validationError(res, parsed.error.issues); return; }
 
         const { period, limit } = parsed.data;
+        const cacheKey = `leaderboard:v1:${period}:top${limit}`;
+        const cached = await cacheGet<any[]>(cacheKey);
+        if (cached) {
+            res.json({ data: cached, meta: { period, cached: true } });
+            return;
+        }
 
         let dateFilter = '';
         if (period === 'weekly') dateFilter = "AND pg.created_at > NOW() - INTERVAL '7 days'";
@@ -378,7 +386,9 @@ router.get('/leaderboard', requireApiKey, requirePermission('read'), async (req:
             ...row,
         }));
 
-        res.json({ data: leaderboard, meta: { period } });
+        await cacheSet(cacheKey, leaderboard, 60);
+
+        res.json({ data: leaderboard, meta: { period, cached: false } });
     } catch (error) {
         console.error('[PublicAPI] Leaderboard error:', error);
         res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch leaderboard' } });
@@ -396,11 +406,49 @@ router.post('/analyze', requireApiKey, requirePermission('analyze'), async (req:
 
         const { url, includeGaps, language } = parsed.data;
 
-        // In production, queue an async job
-        res.json({
+        const inserted = await query(
+            `INSERT INTO batch_jobs (user_id, job_type, status, input_data, total_items, processed_items, progress)
+             VALUES ($1, 'gap_extraction', 'queued', $2::jsonb, 1, 0, 0)
+             RETURNING id, status, created_at`,
+            [
+                req.apiKey!.userId,
+                JSON.stringify({ source: 'public_api', url, includeGaps, language }),
+            ]
+        );
+
+        const batchJob = inserted.rows[0];
+
+        try {
+            await enqueuePublicAnalysisJob({
+                batchJobId: batchJob.id,
+                userId: req.apiKey!.userId,
+                url,
+                includeGaps,
+                language,
+            });
+        } catch (queueError) {
+            console.error('[PublicAPI] Queue error:', queueError);
+
+            await query(
+                `UPDATE batch_jobs
+                 SET status = 'failed', completed_at = NOW(), error_message = $2
+                 WHERE id = $1`,
+                [batchJob.id, 'Queue unavailable: Redis must be reachable and BullMQ-compatible (Redis 5+).']
+            ).catch(() => { });
+
+            res.status(503).json({
+                error: {
+                    code: 'QUEUE_UNAVAILABLE',
+                    message: 'Background queue is unavailable. Check Redis connectivity / version.',
+                },
+            });
+            return;
+        }
+
+        res.status(202).json({
             data: {
-                jobId: `job_${Date.now()}`,
-                status: 'queued',
+                jobId: batchJob.id,
+                status: batchJob.status,
                 url,
                 options: { includeGaps, language },
             },
@@ -420,12 +468,32 @@ router.post('/analyze', requireApiKey, requirePermission('analyze'), async (req:
 
 router.get('/jobs/:id', requireApiKey, requirePermission('read'), async (req: Request, res: Response): Promise<void> => {
     try {
-        // In production, fetch from a real job queue (Bull, pg-boss, etc.)
+        const idParsed = z.string().uuid().safeParse(req.params.id);
+        if (!idParsed.success) { validationError(res, idParsed.error.issues); return; }
+
+        const result = await query(
+            `SELECT id, status, progress, created_at, started_at, completed_at, output_data, error_message
+             FROM batch_jobs
+             WHERE id = $1 AND user_id = $2`,
+            [req.params.id, req.apiKey!.userId]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+            return;
+        }
+
+        const job = result.rows[0];
         res.json({
             data: {
-                jobId: req.params.id,
-                status: 'completed',
-                result: { gaps: [], paper: null },
+                jobId: job.id,
+                status: job.status,
+                progress: job.progress,
+                createdAt: job.created_at,
+                startedAt: job.started_at,
+                completedAt: job.completed_at,
+                result: job.output_data,
+                error: job.error_message,
             },
         });
     } catch (error) {

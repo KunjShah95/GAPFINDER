@@ -66,25 +66,25 @@ export function KnowledgeMapPage() {
     }, [nodes])
 
     return (
-        <div className="min-h-screen bg-[hsl(var(--background))] overflow-hidden flex flex-col">
+        <div className="min-h-screen bg-[rgb(var(--glass-bg))] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b border-[hsl(var(--border))] flex items-center justify-between glass z-10">
+            <div className="p-6 border-b border-[rgb(255 255 255 / 0.08)] flex items-center justify-between glass z-10">
                 <div className="flex items-center gap-6">
-                    <Link to="/insights" className="h-10 w-10 rounded-full border border-[hsl(var(--border))] flex items-center justify-center hover:bg-[hsl(var(--muted))] transition-colors">
+                    <Link to="/insights" className="h-10 w-10 rounded-full border border-[rgb(255 255 255 / 0.08)] flex items-center justify-center hover:bg-[rgb(255 255 255 / 0.06)] transition-colors">
                         <ArrowLeft className="h-4 w-4" />
                     </Link>
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
-                            <Network className="h-5 w-5 text-[hsl(var(--brand-primary))]" />
+                            <Network className="h-5 w-5 text-[rgb(251 146 60)]" />
                             Research Landscape Map
                         </h1>
-                        <p className="text-xs text-[hsl(var(--muted-foreground))] uppercase tracking-widest font-bold">
+                        <p className="text-xs text-[rgb(var(--text-secondary))] uppercase tracking-widest font-bold">
                             Interactive visual clustering of {gaps.length} research gaps
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-4 mr-6 px-4 py-2 bg-[hsl(var(--muted))]/30 rounded-full border border-[hsl(var(--border))]">
+                    <div className="flex items-center gap-4 mr-6 px-4 py-2 bg-[rgb(255 255 255 / 0.06)] rounded-full border border-[rgb(255 255 255 / 0.08)]">
                         <div className="flex items-center gap-2 text-[10px] font-bold">
                             <span className="h-2 w-2 rounded-full bg-yellow-500" /> Data
                         </div>
@@ -136,7 +136,7 @@ export function KnowledgeMapPage() {
                                 node.type === 'compute' ? 'bg-red-500' :
                                     node.type === 'evaluation' ? 'bg-blue-500' :
                                         node.type === 'theory' ? 'bg-purple-500' : 'bg-emerald-500',
-                            selectedGap?.id === node.id ? 'ring-4 ring-[hsl(var(--brand-primary))]/30 scale-150' : ''
+                            selectedGap?.id === node.id ? 'ring-4 ring-[rgb(249 115 22 / 0.3)] scale-150' : ''
                         )} />
                     </motion.div>
                 ))}
@@ -164,16 +164,16 @@ export function KnowledgeMapPage() {
                             initial={{ x: -50, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                         >
-                            <Card className="p-6 border-[hsl(var(--brand-primary))]/20 shadow-2xl">
+                            <Card className="p-6 border-[rgb(249 115 22 / 0.2)] shadow-2xl">
                                 <Badge className="mb-4 uppercase font-bold tracking-tighter" variant={selectedGap.type}>
                                     {selectedGap.type}
                                 </Badge>
                                 <h3 className="text-lg font-bold mb-4 leading-tight">
                                     {selectedGap.problem}
                                 </h3>
-                                <div className="space-y-4 pt-4 border-t border-[hsl(var(--border))]">
+                                <div className="space-y-4 pt-4 border-t border-[rgb(255 255 255 / 0.08)]">
                                     <div>
-                                        <p className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase font-bold mb-1">Source Paper</p>
+                                        <p className="text-[10px] text-[rgb(var(--text-secondary))] uppercase font-bold mb-1">Source Paper</p>
                                         <p className="text-xs font-medium">{selectedGap.paper}</p>
                                     </div>
                                     <div className="flex items-center justify-between">

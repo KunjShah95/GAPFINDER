@@ -28,18 +28,18 @@ function UsageBar({ label, used, limit, icon: Icon }: { label: string; used: num
   return (
     <div>
       <div className="flex items-center justify-between text-sm mb-1.5">
-        <div className="flex items-center gap-2 text-[rgb(var(--muted-foreground))]">
+        <div className="flex items-center gap-2 text-[rgb(var(--text-secondary))]">
           <Icon className="w-4 h-4" />
           <span>{label}</span>
         </div>
-        <span className={`font-medium text-xs ${critical ? "text-red-400" : warning ? "text-amber-400" : "text-[rgb(var(--foreground))]"}`}>
+        <span className={`font-medium text-xs ${critical ? "text-red-400" : warning ? "text-amber-400" : "text-[rgb(var(--text-primary))]"}`}>
           {isUnlimited ? `${used.toLocaleString()} / ∞` : `${used.toLocaleString()} / ${limit.toLocaleString()}`}
         </span>
       </div>
       {!isUnlimited && (
-        <div className="h-2 rounded-full bg-[rgb(var(--muted))]/50">
+        <div className="h-2 rounded-full bg-[rgb(255 255 255 / 0.04)]">
           <div
-            className={`h-2 rounded-full transition-all ${critical ? "bg-red-500" : warning ? "bg-amber-500" : "bg-[rgb(var(--primary))]"}`}
+            className={`h-2 rounded-full transition-all ${critical ? "bg-red-500" : warning ? "bg-amber-500" : "bg-[rgb(249 115 22)]"}`}
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -116,7 +116,7 @@ function BillingPanel() {
               <span className="text-xl font-bold">{tierName} Plan</span>
               {subscription && <StatusBadge status={subscription.status} />}
             </div>
-            <p className="text-sm text-[rgb(var(--muted-foreground))]">
+            <p className="text-sm text-[rgb(var(--text-secondary))]">
               {planMonthlyPrices[tier]} · Renews {renewalDate}
             </p>
           </div>
@@ -139,7 +139,7 @@ function BillingPanel() {
 
       {/* Usage Meters */}
       <div className="card p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wide">This month's usage</h3>
+        <h3 className="text-sm font-semibold text-[rgb(var(--text-secondary))] uppercase tracking-wide">This month's usage</h3>
         <UsageBar label="Papers analyzed"    used={papersUsed}   limit={limits.papersPerMonth}       icon={FileText} />
         <UsageBar label="Gaps extracted"     used={gapsUsed}     limit={limits.papersPerMonth * limits.gapsPerPaper > 0 ? limits.papersPerMonth * limits.gapsPerPaper : -1} icon={TrendingUp} />
         <UsageBar label="AI chat messages"   used={0}            limit={limits.chatMessagesPerMonth} icon={MessageSquare} />
@@ -152,7 +152,7 @@ function BillingPanel() {
 
       {/* Plan Features */}
       <div className="card p-5">
-        <h3 className="text-sm font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wide mb-4">Included in your plan</h3>
+        <h3 className="text-sm font-semibold text-[rgb(var(--text-secondary))] uppercase tracking-wide mb-4">Included in your plan</h3>
         <div className="grid sm:grid-cols-2 gap-2">
           {[
             `${limits.papersPerMonth === -1 ? "Unlimited" : limits.papersPerMonth} papers/month`,
@@ -169,7 +169,7 @@ function BillingPanel() {
             limits.apiAccess ? "API access" : null,
           ].filter(Boolean).map((item, i) => (
             <div key={i} className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="w-4 h-4 text-[rgb(var(--primary))] shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[rgb(251 146 60)] shrink-0" />
               <span>{item}</span>
             </div>
           ))}
@@ -185,14 +185,14 @@ function BillingPanel() {
             </div>
             <div>
               <h3 className="font-semibold">Upgrade to Pro — $29/mo</h3>
-              <p className="text-sm text-[rgb(var(--muted-foreground))] mt-0.5">
+              <p className="text-sm text-[rgb(var(--text-secondary))] mt-0.5">
                 10× your paper quota, unlock all publisher feeds, and get AI-powered grant matching.
               </p>
             </div>
           </div>
           <div className="grid sm:grid-cols-3 gap-2 mb-4">
             {proFeatures.map((f, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-xs text-[rgb(var(--muted-foreground))]">
+              <div key={i} className="flex items-center gap-1.5 text-xs text-[rgb(var(--text-secondary))]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                 <span>{f}</span>
               </div>
@@ -207,7 +207,7 @@ function BillingPanel() {
             </button>
             <button
               onClick={() => navigate("/pricing")}
-              className="px-5 py-2.5 rounded-xl border border-[rgb(var(--border))] text-sm hover:bg-[rgb(var(--muted))] transition-all"
+              className="px-5 py-2.5 rounded-xl border border-[rgb(255 255 255 / 0.08)] text-sm hover:bg-[rgb(255 255 255 / 0.06)] transition-all"
             >
               Compare plans
             </button>
@@ -220,9 +220,9 @@ function BillingPanel() {
         <div className="card p-5 flex items-center justify-between gap-4">
           <div>
             <p className="font-medium">Manage subscription</p>
-            <p className="text-sm text-[rgb(var(--muted-foreground))] mt-0.5">Update payment method, download invoices, or cancel.</p>
+            <p className="text-sm text-[rgb(var(--text-secondary))] mt-0.5">Update payment method, download invoices, or cancel.</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[rgb(var(--border))] text-sm hover:bg-[rgb(var(--muted))] transition-all whitespace-nowrap">
+          <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-[rgb(255 255 255 / 0.08)] text-sm hover:bg-[rgb(255 255 255 / 0.06)] transition-all whitespace-nowrap">
             <CreditCard className="w-4 h-4" /> Billing portal
           </button>
         </div>
@@ -318,7 +318,7 @@ export default function SettingsPage() {
               onClick={() => setActiveSection(section.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 border rounded-xl transition-colors text-left ${
                 activeSection === section.id
-                  ? "bg-[rgb(var(--primary))]/10 border-[rgb(var(--primary))]/40 text-[rgb(var(--primary))]"
+                  ? "bg-[rgb(249 115 22)]/10 border-[rgb(249 115 22 / 0.4)] text-[rgb(251 146 60)]"
                   : "bg-white/5 border-white/10 hover:bg-white/10"
               }`}
             >
@@ -361,7 +361,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleSaveProfile}
                       disabled={saveState === "saving"}
-                      className="px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium disabled:opacity-50 transition-opacity"
+                      className="px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium disabled:opacity-50 transition-opacity"
                     >
                       {saveState === "saving" ? "Saving…" : "Save Changes"}
                     </button>
@@ -420,7 +420,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleChangePw}
                     disabled={changePwMutation.isPending}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium disabled:opacity-50"
                   >
                     {changePwMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                     Change Password
@@ -441,7 +441,7 @@ export default function SettingsPage() {
                             onClick={() => setTheme(t)}
                             className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all capitalize ${
                               theme === t
-                                ? "border-[rgb(var(--primary))] bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]"
+                                ? "border-[rgb(var(--primary))] bg-[rgb(249 115 22)]/10 text-[rgb(251 146 60)]"
                                 : "border-white/10 bg-white/5 hover:bg-white/10"
                             }`}
                           >
@@ -455,7 +455,7 @@ export default function SettingsPage() {
                 </div>
               )}
               {activeSection !== "profile" && activeSection !== "security" && activeSection !== "appearance" && (
-                <p className="text-[rgb(var(--muted-foreground))] text-sm">
+                <p className="text-[rgb(var(--text-secondary))] text-sm">
                   {sections.find(s => s.id === activeSection)?.name} configuration coming soon.
                 </p>
               )}

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS organizations (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_organizations_owner ON organizations(owner_id);
+CREATE INDEX IF NOT EXISTS idx_organizations_owner ON organizations(owner_id);
 
 -- Organization members
 CREATE TABLE IF NOT EXISTS organization_members (
@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS organization_members (
     UNIQUE(organization_id, user_id)
 );
 
-CREATE INDEX idx_org_members_org ON organization_members(organization_id);
-CREATE INDEX idx_org_members_user ON organization_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
 
 -- Organization analytics (aggregated data)
 CREATE TABLE IF NOT EXISTS organization_analytics (
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS organization_analytics (
     UNIQUE(organization_id, period_start)
 );
 
-CREATE INDEX idx_org_analytics_org ON organization_analytics(organization_id, period_start DESC);
+CREATE INDEX IF NOT EXISTS idx_org_analytics_org ON organization_analytics(organization_id, period_start DESC);
 
 -- Organization invitations
 CREATE TABLE IF NOT EXISTS organization_invitations (
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS organization_invitations (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_org_invitations_token ON organization_invitations(token);
+CREATE INDEX IF NOT EXISTS idx_org_invitations_token ON organization_invitations(token);
 
 -- Add trigger for organization updated_at
 CREATE OR REPLACE FUNCTION update_organization_updated_at()

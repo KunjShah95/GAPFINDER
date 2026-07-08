@@ -7,11 +7,72 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { config, getAIProviderConfigs } from '../config.js';
-import { requireAuth, checkQuota } from '../middleware/auth.js';
+import { requireAuth, requireFeature, checkUsageLimit } from '../middleware/auth.js';
 import { query } from '../db/client.js';
 import { AIClient, AIMessage, AIProviderType } from '../lib/ai/index.js';
+import { routeModel, logRoutingDecision, getRoutingStats } from '../lib/model-router.js';
+import { createCachedCallAI, getCacheStats } from '../lib/llm-cache.js';
 
 const router = Router();
+
+const providerOrder: AIProviderType[] = ['gemini', 'openai', 'anthropic', 'openrouter', 'deepseek', 'mistral', 'cohere'];
+
+async function getOrgIntegrations(userId: string): Promise<any | null> {
+    const result = await query(
+        `SELECT o.settings
+         FROM organizations o
+         JOIN organization_members om ON om.organization_id = o.id
+         WHERE om.user_id = $1 AND om.status = 'active'
+         ORDER BY o.created_at DESC
+         LIMIT 1`,
+        [userId]
+    );
+
+    return result.rows[0]?.settings?.integrations || null;
+}
+
+function buildProviderConfigs(integrations?: any) {
+    const aiProviders = integrations?.aiProviders || {};
+    const defaultProvider = integrations?.defaultAiProvider || config.defaultAiProvider;
+
+    const configs = providerOrder
+        .map((type) => {
+            const envKeyMap: Record<AIProviderType, string> = {
+                gemini: config.geminiApiKey,
+                openai: config.openaiApiKey,
+                anthropic: config.anthropicApiKey,
+                openrouter: config.openrouterApiKey,
+                deepseek: config.deepseekApiKey,
+                mistral: config.mistralApiKey,
+                cohere: config.cohereApiKey,
+            };
+
+            const integrationKeyMap: Record<AIProviderType, string> = {
+                gemini: aiProviders.geminiApiKey,
+                openai: aiProviders.openaiApiKey,
+                anthropic: aiProviders.anthropicApiKey,
+                openrouter: aiProviders.openrouterApiKey,
+                deepseek: aiProviders.deepseekApiKey,
+                mistral: aiProviders.mistralApiKey,
+                cohere: aiProviders.cohereApiKey,
+            };
+
+            const apiKey = integrationKeyMap[type] || envKeyMap[type];
+            return apiKey ? { type, apiKey, default: type === defaultProvider } : null;
+        })
+        .filter(Boolean) as { type: AIProviderType; apiKey: string; default?: boolean }[];
+
+    if (!configs.some(cfg => cfg.default) && configs.length > 0) {
+        configs[0].default = true;
+    }
+
+    return configs;
+}
+
+async function getFirecrawlApiKey(userId: string): Promise<string> {
+    const integrations = await getOrgIntegrations(userId);
+    return integrations?.searchProviders?.firecrawlApiKey || config.firecrawlApiKey;
+}
 
 // ============================================================================
 // AI CLIENT (Lazy initialized)
@@ -34,17 +95,28 @@ function getAIClient(): AIClient {
 // UNIFIED AI CALL
 // ============================================================================
 
-async function callAI(
+async function callAIDirect(
     prompt: string, 
     model?: string, 
     providerType?: AIProviderType,
-    systemPrompt?: string
+    systemPrompt?: string,
+    userId?: string,
+    paperCount?: number
 ): Promise<string> {
-    const client = getAIClient();
-    const provider = providerType ? client.getProvider(providerType) : client.getProvider();
+    const integrations = userId ? await getOrgIntegrations(userId) : null;
+    const providerConfigs = buildProviderConfigs(integrations);
+    const client = providerConfigs.length > 0 ? new AIClient(providerConfigs) : getAIClient();
+
+    // --- Model Routing ---
+    const routing = routeModel(prompt, { explicitModel: model, paperCount });
+    logRoutingDecision(routing, prompt.length);
+
+    const provider = providerType
+        ? client.getProvider(providerType)
+        : client.getProvider(routing.provider as AIProviderType) || client.getProvider();
     
     if (!provider) {
-        throw new Error(`AI provider ${providerType || 'default'} not configured`);
+        throw new Error(`AI provider ${providerType || routing.provider} not configured`);
     }
 
     const messages: AIMessage[] = [];
@@ -53,7 +125,7 @@ async function callAI(
     }
     messages.push({ role: 'user', content: prompt });
 
-    const actualModel = model || 'gemini-2.0-flash';
+    const actualModel = model || routing.model;
     
     const response = await provider.call({
         model: actualModel,
@@ -66,6 +138,8 @@ async function callAI(
 
     return response.content;
 }
+
+const callAI = createCachedCallAI(callAIDirect as any);
 
 async function logLlmCall(
     operation: string, model: string,
@@ -94,7 +168,7 @@ const ScrapeSchema = z.object({
     url: z.string().url(),
 });
 
-router.post('/scrape', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/scrape', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = ScrapeSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -104,7 +178,9 @@ router.post('/scrape', requireAuth, checkQuota('api_calls'), async (req: Request
 
         const { url } = parsed.data;
 
-        if (!config.firecrawlApiKey) {
+        const firecrawlApiKey = await getFirecrawlApiKey(req.user!.userId);
+
+        if (!firecrawlApiKey) {
             res.status(503).json({ error: 'Firecrawl API key not configured' });
             return;
         }
@@ -113,7 +189,7 @@ router.post('/scrape', requireAuth, checkQuota('api_calls'), async (req: Request
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.firecrawlApiKey}`,
+                'Authorization': `Bearer ${firecrawlApiKey}`,
             },
             body: JSON.stringify({ url, formats: ['markdown'] }),
         });
@@ -163,7 +239,7 @@ const AnalyzeSchema = z.object({
     content: z.string().min(10).max(500000),
 });
 
-router.post('/analyze-gaps', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/analyze-gaps', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = AnalyzeSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -198,7 +274,7 @@ ${content.slice(0, 18000)}
 
 Return ONLY valid JSON array.`;
 
-        const text = await callAI(prompt);
+        const text = await callAI(prompt, undefined, undefined, undefined, req.user!.userId);
 
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) {
@@ -251,7 +327,7 @@ const ChatSchema = z.object({
     })).optional(),
 });
 
-router.post('/chat', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/chat', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = ChatSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -279,7 +355,7 @@ User question: ${prompt}
 
 Provide a helpful, accurate, and detailed response.`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
 
         await query(
             `UPDATE usage_records SET api_calls = api_calls + 1, last_updated = NOW()
@@ -298,7 +374,7 @@ Provide a helpful, accurate, and detailed response.`;
 // POST /ai/explain-unsolved — Explain unsolved problems
 // ============================================================================
 
-router.post('/explain-unsolved', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/explain-unsolved', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -312,7 +388,7 @@ Problem: ${prompt}
 
 Provide a detailed, technical explanation.`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
         res.json({ explanation: text });
     } catch (error) {
         console.error('[AI] Explain error:', error);
@@ -324,7 +400,7 @@ Provide a detailed, technical explanation.`;
 // POST /ai/generate-proposal — Generate research proposal
 // ============================================================================
 
-router.post('/generate-proposal', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/generate-proposal', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { gap } = req.body;
         if (!gap) {
@@ -347,7 +423,7 @@ Provide the response as a JSON object with these fields:
 
 Return ONLY valid JSON.`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
             res.status(500).json({ error: 'Failed to generate proposal' });
@@ -366,7 +442,7 @@ Return ONLY valid JSON.`;
 // POST /ai/compare-papers — Compare multiple papers
 // ============================================================================
 
-router.post('/compare-papers', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/compare-papers', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { papers } = req.body;
         if (!papers || papers.length < 2) {
@@ -389,7 +465,7 @@ ${papersContext}
 
 Provide a detailed, structured comparison.`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
         res.json({ comparison: text });
     } catch (error) {
         console.error('[AI] Compare error:', error);
@@ -401,7 +477,7 @@ Provide a detailed, structured comparison.`;
 // POST /ai/generate-startup-idea
 // ============================================================================
 
-router.post('/generate-startup-idea', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/generate-startup-idea', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -420,7 +496,7 @@ Research gap: ${prompt}
 
 Return ONLY valid JSON.`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             res.json(JSON.parse(jsonMatch[0]));
@@ -437,7 +513,7 @@ Return ONLY valid JSON.`;
 // POST /ai/generate-research-questions
 // ============================================================================
 
-router.post('/generate-research-questions', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/generate-research-questions', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { prompt } = req.body;
         if (!prompt) {
@@ -451,7 +527,7 @@ Research gap: ${prompt}
 
 Return a JSON array of strings (research questions only).`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
             res.json({ questions: JSON.parse(jsonMatch[0]) });
@@ -468,7 +544,7 @@ Return a JSON array of strings (research questions only).`;
 // POST /ai/red-team-analysis
 // ============================================================================
 
-router.post('/red-team-analysis', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/red-team-analysis', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { gap } = req.body;
         if (!gap) {
@@ -486,7 +562,7 @@ Research direction: ${gap}
 
 Return a JSON array of objects with these fields.`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
             res.json({ analysis: JSON.parse(jsonMatch[0]) });
@@ -503,7 +579,7 @@ Return a JSON array of objects with these fields.`;
 // POST /ai/predict-impact
 // ============================================================================
 
-router.post('/predict-impact', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/predict-impact', requireAuth, requireFeature('impact_prediction'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { gap } = req.body;
         if (!gap) {
@@ -522,7 +598,7 @@ Research gap: ${gap}
 
 Return ONLY valid JSON.`;
 
-        const text = await callAI(fullPrompt);
+        const text = await callAI(fullPrompt, undefined, undefined, undefined, req.user!.userId);
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             res.json(JSON.parse(jsonMatch[0]));
@@ -544,6 +620,8 @@ router.get('/health', (_req: Request, res: Response): void => {
         status: 'ok',
         geminiConfigured: !!config.geminiApiKey,
         firecrawlConfigured: !!config.firecrawlApiKey,
+        llmCache: getCacheStats(),
+        modelRouting: getRoutingStats(),
     });
 });
 
@@ -554,9 +632,10 @@ router.get('/health', (_req: Request, res: Response): void => {
 const PromptSchema = z.object({
     prompt: z.string().min(1).max(200_000),
     model: z.string().optional(),
+    paperCount: z.number().int().min(0).max(50).optional(),
 });
 
-router.post('/prompt', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/prompt', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = PromptSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -569,8 +648,8 @@ router.post('/prompt', requireAuth, checkQuota('api_calls'), async (req: Request
             return;
         }
 
-        const { prompt, model } = parsed.data;
-        const text = await callAI(prompt, model);
+        const { prompt, model, paperCount } = parsed.data;
+        const text = await callAI(prompt, model, undefined, undefined, req.user!.userId, paperCount);
 
         await query(
             `UPDATE usage_records SET api_calls = api_calls + 1, last_updated = NOW()
@@ -594,7 +673,7 @@ const EmbeddingsSchema = z.object({
     model: z.string().optional(),
 });
 
-router.post('/embeddings', requireAuth, checkQuota('api_calls'), async (req: Request, res: Response): Promise<void> => {
+router.post('/embeddings', requireAuth, requireFeature('ai_assistant'), checkUsageLimit('apiCallsPerDay'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = EmbeddingsSchema.safeParse(req.body);
         if (!parsed.success) {

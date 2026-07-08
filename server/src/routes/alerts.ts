@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { query, transaction } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -28,7 +28,7 @@ const UpdateAlertSchema = CreateAlertSchema.partial();
 // GET /api/alerts — List user's alerts
 // ============================================================================
 
-router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -62,7 +62,7 @@ const ALERT_TIER_LIMITS: Record<string, number> = {
     enterprise: -1, // unlimited
 };
 
-router.post('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = CreateAlertSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -112,7 +112,7 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
 // PATCH /api/alerts/:id — Update alert
 // ============================================================================
 
-router.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.patch('/:id', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = UpdateAlertSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -179,7 +179,7 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<v
 // DELETE /api/alerts/:id — Delete alert
 // ============================================================================
 
-router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -206,7 +206,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
 // POST /api/alerts/:id/test — Test alert (trigger manually)
 // ============================================================================
 
-router.post('/:id/test', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/:id/test', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -240,7 +240,7 @@ router.post('/:id/test', requireAuth, async (req: Request, res: Response): Promi
 // GET /api/alerts/:id/notifications — Get notifications for alert
 // ============================================================================
 
-router.get('/:id/notifications', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/notifications', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const page = parseInt(req.query.page as string) || 1;
@@ -279,7 +279,7 @@ router.get('/:id/notifications', requireAuth, async (req: Request, res: Response
 // GET /api/notifications — Get all notifications for user
 // ============================================================================
 
-router.get('/notifications/all', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/notifications/all', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const page = parseInt(req.query.page as string) || 1;
@@ -327,7 +327,7 @@ router.get('/notifications/all', requireAuth, async (req: Request, res: Response
 // PATCH /api/notifications/:id/read — Mark notification as read
 // ============================================================================
 
-router.patch('/notifications/:id/read', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.patch('/notifications/:id/read', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -355,7 +355,7 @@ router.patch('/notifications/:id/read', requireAuth, async (req: Request, res: R
 // POST /api/notifications/read-all — Mark all as read
 // ============================================================================
 
-router.post('/notifications/read-all', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/notifications/read-all', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -377,7 +377,7 @@ router.post('/notifications/read-all', requireAuth, async (req: Request, res: Re
 // GET /api/alerts/preferences — Get notification preferences
 // ============================================================================
 
-router.get('/preferences', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/preferences', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 
@@ -424,7 +424,7 @@ router.get('/preferences', requireAuth, async (req: Request, res: Response): Pro
 // PUT /api/alerts/preferences — Update notification preferences
 // ============================================================================
 
-router.put('/preferences', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.put('/preferences', requireAuth, requireFeature('research_alerts'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const {

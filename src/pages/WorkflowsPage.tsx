@@ -25,7 +25,7 @@ export default function WorkflowsPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Workflows</h1>
           <p className="text-slate-400 mt-1">Automate your research pipeline with intelligent workflows</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium"><Plus className="w-4 h-4" /> New Workflow</button>
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium"><Plus className="w-4 h-4" /> New Workflow</button>
       </div>
 
       <div className="flex gap-2 p-1 bg-white/5 border border-white/10 rounded-xl w-fit">
@@ -48,8 +48,8 @@ export default function WorkflowsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"><Settings className="w-4 h-4" /></button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-violet-500 rounded-lg font-medium hover:bg-violet-600 transition-colors"><Play className="w-4 h-4" /> {workflow.status === "active" ? "Continue" : "Start"}</button>
+                  <button className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"><Settings className="w-4 h-4" /></button>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-violet-500 rounded-full font-medium hover:bg-violet-600 transition-colors"><Play className="w-4 h-4" /> {workflow.status === "active" ? "Continue" : "Start"}</button>
                 </div>
               </div>
               <div className="mt-4">

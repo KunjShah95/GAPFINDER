@@ -76,19 +76,19 @@ export default function PapersPage() {
       className="space-y-8"
     >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Papers Library</h1>
-          <p className="text-muted-foreground mt-1">Manage and analyze your research papers</p>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Papers Library</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage and analyze your research papers</p>
         </div>
-        <Button>
+        <Button className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Add Paper
         </Button>
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <input
@@ -98,9 +98,9 @@ export default function PapersPage() {
             className="w-full pl-12 pr-4 py-3 bg-background border border-input rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           />
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
           {filters.map((filter) => (
-            <div key={filter.label} className="relative group">
+            <div key={filter.label} className="relative group flex-shrink-0">
               <Button variant="outline" className="gap-2">
                 <span className="text-sm">{filter.label}</span>
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
@@ -121,11 +121,11 @@ export default function PapersPage() {
               </div>
             </div>
           ))}
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 flex-shrink-0">
             <Filter className="w-4 h-4" />
-            More Filters
+            More
           </Button>
-          <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-1 flex-shrink-0">
             <button
               onClick={() => setViewMode("list")}
               className={cn(
@@ -223,10 +223,10 @@ export default function PapersPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-lg transition-colors text-muted-foreground hover:text-amber-500">
+                    <button className="p-2 rounded-full transition-colors text-muted-foreground hover:text-amber-500">
                       <Star className="w-4 h-4" />
                     </button>
-                    <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <button className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </div>

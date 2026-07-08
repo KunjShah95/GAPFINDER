@@ -10,6 +10,7 @@ import { getUserUsage } from '../lib/stripe.js';
 import { getAllPlans as getStripePlans, getPlan as getStripePlan } from '../lib/stripe.js';
 import { getAllPlans as getRazorpayPlans, getPlan as getRazorpayPlan, createRazorpayCheckout, createRazorpayPortalSession, handleRazorpayWebhook } from '../lib/razorpay.js';
 import { isFeatureEnabled, getConfig } from '../lib/config.js';
+import { logAuditEvent, getClientInfo, AuditActions } from '../lib/audit-trail.js';
 
 const router = Router();
 
@@ -146,7 +147,15 @@ router.post('/checkout', requireAuth, async (req: Request, res: Response): Promi
             res.status(400).json({ error: result.error });
             return;
         }
-        
+
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.SUBSCRIPTION_CREATED,
+            resourceType: 'subscription',
+            changes: { planId, billingCycle, provider: paymentProvider },
+            ...getClientInfo(req),
+        });
+
         res.json({
             ...result,
             provider: paymentProvider,

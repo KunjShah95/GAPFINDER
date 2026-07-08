@@ -7,6 +7,8 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { query, transaction } from '../db/client.js';
 import { requireAuth, checkQuota } from '../middleware/auth.js';
+import { logAuditEvent, getClientInfo, AuditActions } from '../lib/audit-trail.js';
+import { emitToUser } from '../lib/socket.js';
 
 const router = Router();
 
@@ -22,6 +24,8 @@ const CreatePaperSchema = z.object({
     venue: z.string().optional(),
     year: z.number().int().min(1900).max(2100).optional(),
     content: z.string().optional(),
+    source: z.string().optional(),
+    published_at: z.string().datetime().optional(),
     metadata: z.record(z.string(), z.any()).optional(),
 });
 
@@ -177,15 +181,15 @@ router.post('/', requireAuth, checkQuota('papers'), async (req: Request, res: Re
             return;
         }
 
-        const { url, title, abstract, authors, venue, year, content, metadata } = parsed.data;
+        const { url, title, abstract, authors, venue, year, content, source, published_at, metadata } = parsed.data;
 
         const result = await transaction(async (client) => {
             // Create paper
             const paperResult = await client.query(
-                `INSERT INTO papers (user_id, url, title, abstract, authors, venue, year, content, metadata)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                `INSERT INTO papers (user_id, url, title, abstract, authors, venue, year, content, source, published_at, metadata)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::timestamptz, NOW()), $11)
                  RETURNING *`,
-                [req.user!.userId, url, title, abstract || null, authors || [], venue || null, year || null, content || null, metadata || {}]
+                [req.user!.userId, url, title, abstract || null, authors || [], venue || null, year || null, content || null, source || null, published_at || null, metadata || {}]
             );
 
             // Update usage
@@ -204,6 +208,17 @@ router.post('/', requireAuth, checkQuota('papers'), async (req: Request, res: Re
 
             return paperResult.rows[0];
         });
+
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.PAPER_CREATED,
+            resourceType: 'paper',
+            resourceId: result.id,
+            changes: { title: result.title, url: result.url },
+            ...getClientInfo(req),
+        });
+
+        emitToUser(req.user!.userId, 'paper:added', result);
 
         res.status(201).json(result);
     } catch (error) {
@@ -227,6 +242,14 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
             res.status(404).json({ error: 'Paper not found' });
             return;
         }
+
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.PAPER_DELETED,
+            resourceType: 'paper',
+            resourceId: req.params.id as string,
+            ...getClientInfo(req),
+        });
 
         res.json({ message: 'Paper deleted' });
     } catch (error) {

@@ -15,7 +15,7 @@ export default function TeamPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Team</h1>
           <p className="text-slate-400 mt-1">Manage your research team</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium"><Mail className="w-4 h-4" /> Invite Member</button>
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium"><Mail className="w-4 h-4" /> Invite Member</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -50,7 +50,7 @@ export default function TeamPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-slate-400">{member.role}</span>
-                <button className="p-2 rounded-lg hover:bg-white/10"><Settings className="w-4 h-4" /></button>
+                <button className="p-2 rounded-full hover:bg-white/10"><Settings className="w-4 h-4" /></button>
               </div>
             </motion.div>
           ))}

@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS alert_notifications (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_alert_notifications_alert ON alert_notifications(alert_id);
-CREATE INDEX idx_alert_notifications_user ON alert_notifications(alert_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_alert_notifications_alert ON alert_notifications(alert_id);
+CREATE INDEX IF NOT EXISTS idx_alert_notifications_user ON alert_notifications(alert_id, is_read);
 
 -- Push notification subscriptions
 CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_push_subscriptions_user ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
 
 -- Email notification preferences
 CREATE TABLE IF NOT EXISTS notification_preferences (

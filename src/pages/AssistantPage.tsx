@@ -135,7 +135,7 @@ export function AssistantPage() {
                         <br />
                         <span className="gradient-text">Assistant</span>
                     </h1>
-                    <p className="text-lg text-[hsl(var(--muted-foreground))] max-w-2xl">
+                    <p className="text-lg text-[rgb(var(--text-secondary))] max-w-2xl">
                         Ask questions about extracted research gaps. Get insights, find patterns,
                         and discover connections across your paper corpus.
                     </p>
@@ -149,13 +149,13 @@ export function AssistantPage() {
                             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                 {messages.length === 0 && (
                                     <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(var(--brand-primary))] to-[hsl(var(--brand-secondary))] mb-4">
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(249 115 22)] to-[rgb(245 158 11)] mb-4">
                                             <Sparkles className="h-8 w-8 text-white" />
                                         </div>
                                         <h3 className="font-semibold text-lg mb-2">
                                             Research Assistant Ready
                                         </h3>
-                                        <p className="text-[hsl(var(--muted-foreground))] mb-6 max-w-sm">
+                                        <p className="text-[rgb(var(--text-secondary))] mb-6 max-w-sm">
                                             {isLoadingPapers
                                                 ? "Loading your papers..."
                                                 : `Ready to analyze ${papers.length} papers. Ask me anything about research gaps.`
@@ -186,21 +186,21 @@ export function AssistantPage() {
                                             className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                                         >
                                             {msg.role === "assistant" && (
-                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(var(--brand-primary))] to-[hsl(var(--brand-secondary))]">
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(249 115 22)] to-[rgb(245 158 11)]">
                                                     <Sparkles className="h-4 w-4 text-white" />
                                                 </div>
                                             )}
                                             <div
                                                 className={`max-w-[80%] rounded-2xl px-4 py-3 ${msg.role === "user"
-                                                    ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
-                                                    : "bg-[hsl(var(--muted))]"
+                                                    ? "bg-[rgb(249 115 22)] text-white"
+                                                    : "bg-[rgb(255 255 255 / 0.06)]"
                                                     }`}
                                             >
                                                 <div className="whitespace-pre-wrap text-sm">
                                                     {msg.content}
                                                 </div>
                                                 {msg.role === "assistant" && (
-                                                    <div className="mt-3 flex items-center gap-2 border-t border-[hsl(var(--border))] pt-2">
+                                                    <div className="mt-3 flex items-center gap-2 border-t border-[rgb(255 255 255 / 0.08)] pt-2">
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
@@ -239,7 +239,7 @@ export function AssistantPage() {
                                                 )}
                                             </div>
                                             {msg.role === "user" && (
-                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--muted))]">
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[rgb(255 255 255 / 0.06)]">
                                                     <User className="h-4 w-4" />
                                                 </div>
                                             )}
@@ -253,25 +253,25 @@ export function AssistantPage() {
                                         animate={{ opacity: 1 }}
                                         className="flex gap-3"
                                     >
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(var(--brand-primary))] to-[hsl(var(--brand-secondary))]">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(249 115 22)] to-[rgb(245 158 11)]">
                                             <Sparkles className="h-4 w-4 text-white" />
                                         </div>
-                                        <div className="rounded-2xl bg-[hsl(var(--muted))] px-4 py-3">
+                                        <div className="rounded-2xl bg-[rgb(255 255 255 / 0.06)] px-4 py-3">
                                             <div className="flex gap-1">
                                                 <motion.div
                                                     animate={{ opacity: [0.4, 1, 0.4] }}
                                                     transition={{ duration: 1, repeat: Infinity }}
-                                                    className="h-2 w-2 rounded-full bg-[hsl(var(--muted-foreground))]"
+                                                    className="h-2 w-2 rounded-full bg-[rgb(var(--text-secondary))]"
                                                 />
                                                 <motion.div
                                                     animate={{ opacity: [0.4, 1, 0.4] }}
                                                     transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                                                    className="h-2 w-2 rounded-full bg-[hsl(var(--muted-foreground))]"
+                                                    className="h-2 w-2 rounded-full bg-[rgb(var(--text-secondary))]"
                                                 />
                                                 <motion.div
                                                     animate={{ opacity: [0.4, 1, 0.4] }}
                                                     transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                                                    className="h-2 w-2 rounded-full bg-[hsl(var(--muted-foreground))]"
+                                                    className="h-2 w-2 rounded-full bg-[rgb(var(--text-secondary))]"
                                                 />
                                             </div>
                                         </div>
@@ -281,7 +281,7 @@ export function AssistantPage() {
                             </div>
 
                             {/* Input */}
-                            <div className="border-t border-[hsl(var(--border))] p-4">
+                            <div className="border-t border-[rgb(255 255 255 / 0.08)] p-4">
                                 <form
                                     onSubmit={(e) => { e.preventDefault(); handleSend() }}
                                     className="flex gap-2"
@@ -291,7 +291,7 @@ export function AssistantPage() {
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         placeholder="Ask about research gaps..."
-                                        className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-transparent px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]"
+                                        className="flex-1 rounded-lg border border-[rgb(255 255 255 / 0.08)] bg-transparent px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(249 115 22)]"
                                         disabled={isTyping}
                                     />
                                     <Button type="submit" disabled={!input.trim() || isTyping}>
@@ -342,13 +342,13 @@ export function AssistantPage() {
                                         <Badge variant="secondary" className="text-[10px]">
                                             Context Loaded
                                         </Badge>
-                                        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                                        <p className="text-xs text-[rgb(var(--text-secondary))]">
                                             {papers.length} papers loaded into context.
                                         </p>
                                     </div>
                                 ) : (
                                     <div className="space-y-1">
-                                        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                                        <p className="text-xs text-[rgb(var(--text-secondary))]">
                                             No papers loaded yet. Crawl some papers to get started.
                                         </p>
                                     </div>

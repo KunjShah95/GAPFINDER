@@ -139,10 +139,10 @@ export function HomePage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button onClick={handleSignIn} className="btn-ghost text-sm">
+              <button onClick={handleSignIn} className="btn btn-ghost text-sm">
                 Sign in
               </button>
-              <button onClick={handleGetStarted} className="btn-primary text-sm">
+              <button onClick={handleGetStarted} className="btn btn-primary text-sm">
                 Get started
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -266,7 +266,7 @@ export function HomePage() {
             viewport={{ once: true }}
             className="text-center mt-12"
           >
-            <button onClick={handleGetStarted} className="btn-primary px-8 py-3">
+            <button onClick={handleGetStarted} className="btn btn-primary px-8 py-3">
               Try it free
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -405,7 +405,7 @@ export function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <button onClick={handleGetStarted} className={`w-full py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                <button onClick={handleGetStarted} className={`w-full py-2.5 text-sm font-medium rounded-full transition-colors ${
                   plan.popular
                     ? 'bg-[rgb(var(--primary))] text-white hover:opacity-90'
                     : 'bg-[rgb(var(--muted))] hover:bg-[rgb(var(--muted-foreground))]/10'
@@ -435,7 +435,7 @@ export function HomePage() {
               <p className="text-[rgb(var(--muted-foreground))] mb-8 max-w-xl mx-auto">
                 Join thousands of researchers who use GapMiner to accelerate their literature review and find research gaps faster.
               </p>
-              <button onClick={handleGetStarted} className="btn-primary px-8 py-3">
+              <button onClick={handleGetStarted} className="btn btn-primary px-8 py-3">
                 Get started free
                 <ArrowRight className="w-5 h-5" />
               </button>

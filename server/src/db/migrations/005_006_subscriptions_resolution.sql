@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS paper_subscriptions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_paper_subscriptions_user ON paper_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_paper_subscriptions_user ON paper_subscriptions(user_id);
 
 -- Synced papers (from auto-sync)
 CREATE TABLE IF NOT EXISTS synced_papers (
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS synced_papers (
     UNIQUE(external_id, user_id)
 );
 
-CREATE INDEX idx_synced_papers_subscription ON synced_papers(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_synced_papers_subscription ON synced_papers(subscription_id);
 
 -- ============================================================================
 -- Migration 006: Resolution Tracking
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS gap_resolutions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_gap_resolutions_gap ON gap_resolutions(gap_id);
+CREATE INDEX IF NOT EXISTS idx_gap_resolutions_gap ON gap_resolutions(gap_id);
 
 -- Gap timeline events
 CREATE TABLE IF NOT EXISTS gap_timeline (
@@ -58,4 +58,4 @@ CREATE TABLE IF NOT EXISTS gap_timeline (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_gap_timeline_gap ON gap_timeline(gap_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gap_timeline_gap ON gap_timeline(gap_id, created_at DESC);

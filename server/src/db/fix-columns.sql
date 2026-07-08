@@ -1,0 +1,3 @@
+-- Add missing created_at columns
+ALTER TABLE gaps ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();

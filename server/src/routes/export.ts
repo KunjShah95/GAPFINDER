@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { Router, Request, Response } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
 import { query } from '../db/client.js';
 
 const router = Router();
@@ -13,7 +13,7 @@ const router = Router();
 // GET /export/papers — Export papers in JSON/CSV/BibTeX
 // ============================================================================
 
-router.get('/papers', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/papers', requireAuth, requireFeature('basic_export'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const format = (req.query.format as string) || 'json';
@@ -86,7 +86,7 @@ router.get('/papers', requireAuth, async (req: Request, res: Response): Promise<
 // GET /export/gaps — Export gaps in JSON/CSV/Markdown
 // ============================================================================
 
-router.get('/gaps', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/gaps', requireAuth, requireFeature('basic_export'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const format = (req.query.format as string) || 'json';
@@ -170,7 +170,7 @@ router.get('/gaps', requireAuth, async (req: Request, res: Response): Promise<vo
 // GET /export/collection/:id — Export an entire collection
 // ============================================================================
 
-router.get('/collection/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/collection/:id', requireAuth, requireFeature('all_exports'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
         const collectionId = req.params.id;
@@ -231,7 +231,7 @@ router.get('/collection/:id', requireAuth, async (req: Request, res: Response): 
 // GET /export/report — Generate a full research report
 // ============================================================================
 
-router.get('/report', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/report', requireAuth, requireFeature('all_exports'), async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.user!.userId;
 

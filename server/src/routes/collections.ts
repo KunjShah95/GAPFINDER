@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { query, transaction } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -20,7 +20,7 @@ const CreateCollectionSchema = z.object({
 // GET /collections — List user's collections
 // ============================================================================
 
-router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/', requireAuth, requireFeature('collections'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(
             `SELECT c.*,
@@ -46,7 +46,7 @@ router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> 
 // POST /collections — Create collection
 // ============================================================================
 
-router.post('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/', requireAuth, requireFeature('collections'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = CreateCollectionSchema.safeParse(req.body);
         if (!parsed.success) {
@@ -60,7 +60,7 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
             `INSERT INTO collections (user_id, name, description, color)
              VALUES ($1, $2, $3, $4)
              RETURNING *`,
-            [req.user!.userId, name, description || null, color || '#6366f1']
+            [req.user!.userId, name, description || null, color || '#f97316']
         );
 
         res.status(201).json(result.rows[0]);
@@ -74,7 +74,7 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
 // POST /collections/:id/papers — Add paper to collection
 // ============================================================================
 
-router.post('/:id/papers', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/:id/papers', requireAuth, requireFeature('collections'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { paperId } = req.body;
         if (!paperId) {
@@ -100,7 +100,7 @@ router.post('/:id/papers', requireAuth, async (req: Request, res: Response): Pro
 // POST /collections/:id/gaps — Add gap to collection
 // ============================================================================
 
-router.post('/:id/gaps', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/:id/gaps', requireAuth, requireFeature('collections'), async (req: Request, res: Response): Promise<void> => {
     try {
         const { gapId } = req.body;
         if (!gapId) {
@@ -126,7 +126,7 @@ router.post('/:id/gaps', requireAuth, async (req: Request, res: Response): Promi
 // PATCH /collections/:id/star — Toggle star
 // ============================================================================
 
-router.patch('/:id/star', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.patch('/:id/star', requireAuth, requireFeature('collections'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(
             `UPDATE collections SET starred = NOT starred WHERE id = $1 AND user_id = $2 RETURNING starred`,
@@ -149,7 +149,7 @@ router.patch('/:id/star', requireAuth, async (req: Request, res: Response): Prom
 // DELETE /collections/:id — Delete collection
 // ============================================================================
 
-router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', requireAuth, requireFeature('collections'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(
             'DELETE FROM collections WHERE id = $1 AND user_id = $2 RETURNING id',

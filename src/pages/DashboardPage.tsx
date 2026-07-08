@@ -143,21 +143,21 @@ export default function DashboardPage() {
       <PrimeHero />
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Research Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Research Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Welcome back, {user?.name || "Researcher"}. Here's your research overview.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex items-center bg-muted border border-border rounded-xl p-1">
             {(["week", "month", "year"] as const).map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
                 className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-lg transition-all",
+                  "flex-1 sm:flex-none px-3 py-1.5 text-sm font-medium rounded-lg transition-all",
                   timeRange === range
                     ? "bg-background shadow-sm text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -167,7 +167,7 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-          <Button>
+          <Button className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             New Analysis
           </Button>
@@ -224,7 +224,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Gaps */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

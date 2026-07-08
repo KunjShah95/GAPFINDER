@@ -6,7 +6,9 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { query, transaction } from '../db/client.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
+import { logAuditEvent, getClientInfo, AuditActions } from '../lib/audit-trail.js';
+import { emitToUser, emitToTeam, emitToDocument } from '../lib/socket.js';
 
 const router = Router();
 
@@ -151,6 +153,17 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
             return gapResult.rows[0];
         });
 
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.GAP_CREATED,
+            resourceType: 'gap',
+            resourceId: result.id,
+            changes: { paperId, type, impactScore },
+            ...getClientInfo(req),
+        });
+
+        emitToUser(req.user!.userId, 'gap:created', result);
+
         res.status(201).json(result);
     } catch (error) {
         console.error('[Gaps] Create error:', error);
@@ -236,7 +249,7 @@ router.post('/:id/vote', requireAuth, async (req: Request, res: Response): Promi
                 `INSERT INTO gap_votes (user_id, gap_id, vote_type)
                  VALUES ($1, $2, $3)
                  ON CONFLICT (user_id, gap_id) DO UPDATE SET vote_type = $3, created_at = NOW()`,
-                [req.user!.userId, req.params.id, voteType]
+                [req.user!.userId, req.params.id as string, voteType]
             );
 
             // Recalculate upvotes
@@ -244,11 +257,26 @@ router.post('/:id/vote', requireAuth, async (req: Request, res: Response): Promi
                 `UPDATE gaps SET upvotes = (
                     SELECT COALESCE(SUM(vote_type), 0) FROM gap_votes WHERE gap_id = $1
                  ) WHERE id = $1`,
-                [req.params.id]
+                [req.params.id as string]
             );
         });
 
-        const result = await query('SELECT upvotes FROM gaps WHERE id = $1', [req.params.id]);
+        const result = await query('SELECT upvotes FROM gaps WHERE id = $1', [req.params.id as string]);
+
+        await logAuditEvent({
+            action: AuditActions.GAP_VOTED,
+            userId: req.user!.userId,
+            resourceType: 'gap',
+            resourceId: req.params.id as string,
+            changes: { voteType },
+            ...getClientInfo(req),
+        });
+
+        emitToDocument('gap', req.params.id as string, 'gap:voted', {
+            gapId: req.params.id as string,
+            upvotes: result.rows[0]?.upvotes || 0,
+        });
+
         res.json({ upvotes: result.rows[0]?.upvotes || 0 });
     } catch (error) {
         console.error('[Gaps] Vote error:', error);
@@ -268,13 +296,22 @@ router.patch('/:id/resolve', requireAuth, async (req: Request, res: Response): P
             `UPDATE gaps SET is_resolved = TRUE, resolved_by = $1, resolved_at = NOW()
              WHERE id = $2 AND user_id = $3
              RETURNING *`,
-            [resolvedBy || null, req.params.id, req.user!.userId]
+            [resolvedBy || null, req.params.id as string, req.user!.userId]
         );
 
         if (result.rows.length === 0) {
             res.status(404).json({ error: 'Gap not found' });
             return;
         }
+
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.GAP_RESOLVED,
+            resourceType: 'gap',
+            resourceId: req.params.id as string,
+            changes: { resolvedBy },
+            ...getClientInfo(req),
+        });
 
         res.json(result.rows[0]);
     } catch (error) {
@@ -291,13 +328,21 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
     try {
         const result = await query(
             'DELETE FROM gaps WHERE id = $1 AND user_id = $2 RETURNING id',
-            [req.params.id, req.user!.userId]
+            [req.params.id as string, req.user!.userId]
         );
 
         if (result.rows.length === 0) {
             res.status(404).json({ error: 'Gap not found' });
             return;
         }
+
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.GAP_DELETED,
+            resourceType: 'gap',
+            resourceId: req.params.id as string,
+            ...getClientInfo(req),
+        });
 
         res.json({ message: 'Gap deleted' });
     } catch (error) {
@@ -310,7 +355,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
 // GET /gaps/stats — Get gap statistics for dashboard
 // ============================================================================
 
-router.get('/stats/overview', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/stats/overview', requireAuth, requireFeature('advanced_gap_analysis'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(
             `SELECT 

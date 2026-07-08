@@ -358,7 +358,7 @@ export function KeyboardShortcutsHelp({
                             </div>
                             <button
                                 onClick={onClose}
-                                className="p-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
+                                className="p-2 rounded-full hover:bg-[hsl(var(--muted))] transition-colors"
                             >
                                 <X className="h-4 w-4" />
                             </button>

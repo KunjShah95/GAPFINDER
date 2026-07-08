@@ -93,12 +93,12 @@ export default function ExportPage() {
       </div>
 
       {error && (
-        <div className="card p-4 border-red-500/20 bg-red-500/5">
+        <div className="glass-card p-4 cursor-default">
           <p className="text-sm text-red-500">{error}</p>
         </div>
       )}
 
-      <div className="card p-6">
+      <div className="glass-card p-6 cursor-default">
         <h2 className="text-lg font-semibold mb-2">Quick Export</h2>
         <p className="text-sm text-muted-foreground mb-5">Download all your papers at once in your preferred format.</p>
         <div className="flex flex-wrap gap-3">

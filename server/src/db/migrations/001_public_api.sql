@@ -23,8 +23,10 @@ CREATE TABLE IF NOT EXISTS public_gaps (
     UNIQUE(gap_id)
 );
 
-CREATE INDEX idx_public_gaps_upvotes ON public_gaps(upvotes DESC);
-CREATE INDEX idx_public_gaps_featured ON public_gaps(is_featured DESC, created_at DESC);
+ALTER TABLE public_gaps ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_public_gaps_upvotes ON public_gaps(upvotes DESC);
+CREATE INDEX IF NOT EXISTS idx_public_gaps_featured ON public_gaps(is_featured DESC, created_at DESC);
 
 -- Add gap votes for public gaps
 CREATE TABLE IF NOT EXISTS public_gap_votes (
@@ -38,15 +40,20 @@ CREATE TABLE IF NOT EXISTS public_gap_votes (
 -- Add API usage tracking
 CREATE TABLE IF NOT EXISTS api_usage_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    api_key_id UUID REFERENCES api_keys(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    api_key_id UUID REFERENCES api_keys(id) ON DELETE SET NULL,
     endpoint VARCHAR(100) NOT NULL,
     method VARCHAR(10) NOT NULL,
     status_code INTEGER,
     response_time_ms INTEGER,
+    tokens_used INTEGER DEFAULT 0,
+    cost DECIMAL(10,6) DEFAULT 0,
+    ip_address VARCHAR(45),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_api_usage_key_time ON api_usage_logs(api_key_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_usage_user_time ON api_usage_logs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_usage_key_time ON api_usage_logs(api_key_id, created_at DESC);
 
 -- Add user profiles for community
 CREATE TABLE IF NOT EXISTS user_profiles (
@@ -73,7 +80,7 @@ CREATE TABLE IF NOT EXISTS user_follows (
     PRIMARY KEY (follower_id, following_id)
 );
 
-CREATE INDEX idx_user_follows_following ON user_follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_user_follows_following ON user_follows(following_id);
 
 -- Add gap leaderboard cache
 CREATE TABLE IF NOT EXISTS leaderboard_cache (
@@ -84,7 +91,7 @@ CREATE TABLE IF NOT EXISTS leaderboard_cache (
     expires_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX idx_leaderboard_period ON leaderboard_cache(period);
+CREATE INDEX IF NOT EXISTS idx_leaderboard_period ON leaderboard_cache(period);
 
 -- Create trigger for public_gaps updated_at
 CREATE OR REPLACE FUNCTION update_public_gaps_updated_at()

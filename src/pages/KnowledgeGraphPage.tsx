@@ -22,8 +22,8 @@ export default function KnowledgeGraphPage() {
           <p className="text-slate-400 mt-1">Explore relationships between papers, concepts, and research gaps</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"><Share2 className="w-4 h-4" /> Share</button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium"><Sparkles className="w-4 h-4" /> AI Insights</button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors"><Share2 className="w-4 h-4" /> Share</button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium"><Sparkles className="w-4 h-4" /> AI Insights</button>
         </div>
       </div>
 
@@ -58,7 +58,7 @@ export default function KnowledgeGraphPage() {
             <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-2 bg-white/10 rounded-lg hover:bg-white/20"><ZoomIn className="w-4 h-4" /></button>
           </div>
           <div className="absolute top-4 right-4 flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-lg text-sm hover:bg-white/20"><Filter className="w-4 h-4" /> Filter</button>
+            <button className="flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-sm hover:bg-white/20"><Filter className="w-4 h-4" /> Filter</button>
           </div>
         </motion.div>
 

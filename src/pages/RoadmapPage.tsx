@@ -16,7 +16,7 @@ export default function RoadmapPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Research Roadmap</h1>
           <p className="text-slate-400 mt-1">Plan your multi-year research journey</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium"><Zap className="w-4 h-4" /> Generate Roadmap</button>
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium"><Zap className="w-4 h-4" /> Generate Roadmap</button>
       </div>
 
       <div className="relative">

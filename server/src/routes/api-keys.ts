@@ -6,8 +6,9 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireFeature } from '../middleware/auth.js';
 import { query } from '../db/client.js';
+import { logAuditEvent, getClientInfo, AuditActions } from '../lib/audit-trail.js';
 
 const router = Router();
 
@@ -52,7 +53,7 @@ function hashKey(secret: string): string {
 // GET /api-keys — List all API keys for user
 // ============================================================================
 
-router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/', requireAuth, requireFeature('api_access'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(`
             SELECT id, name, key_prefix, permissions, is_active, last_used_at, expires_at, created_at
@@ -89,7 +90,7 @@ const CreateApiKeySchema = z.object({
     expiresInDays: z.number().min(1).max(365).optional(),
 });
 
-router.post('/', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/', requireAuth, requireFeature('api_access'), async (req: Request, res: Response): Promise<void> => {
     try {
         const parsed = CreateApiKeySchema.safeParse(req.body);
         if (!parsed.success) {
@@ -123,6 +124,15 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
             secret: `${prefix}_${secret.substring(10)}`, // Return full key
         };
         
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.API_KEY_CREATED,
+            resourceType: 'api_key',
+            resourceId: apiKey.id,
+            changes: { name, permissions, expiresInDays },
+            ...getClientInfo(req),
+        });
+
         res.status(201).json({
             message: 'API key created successfully',
             key: apiKey,
@@ -137,9 +147,9 @@ router.post('/', requireAuth, async (req: Request, res: Response): Promise<void>
 // DELETE /api-keys/:id — Revoke API key
 // ============================================================================
 
-router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', requireAuth, requireFeature('api_access'), async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params;
+        const { id } = req.params as { id: string };
         
         const result = await query(`
             UPDATE api_keys
@@ -153,6 +163,14 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response): Promise<
             return;
         }
         
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.API_KEY_REVOKED,
+            resourceType: 'api_key',
+            resourceId: id,
+            ...getClientInfo(req),
+        });
+
         res.json({ message: 'API key revoked successfully' });
     } catch (error) {
         console.error('[API Keys] Delete error:', error);
@@ -169,9 +187,9 @@ const UpdateApiKeySchema = z.object({
     permissions: z.array(z.enum(['read', 'write', 'admin'])).optional(),
 });
 
-router.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.patch('/:id', requireAuth, requireFeature('api_access'), async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params;
+        const { id } = req.params as { id: string };
         const parsed = UpdateApiKeySchema.safeParse(req.body);
         
         if (!parsed.success) {
@@ -223,9 +241,9 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response): Promise<v
 // GET /api-keys/:id/regenerate — Regenerate API key
 // ============================================================================
 
-router.post('/:id/regenerate', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post('/:id/regenerate', requireAuth, requireFeature('api_access'), async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params;
+        const { id } = req.params as { id: string };
         
         // Verify ownership
         const existing = await query(`
@@ -248,6 +266,14 @@ router.post('/:id/regenerate', requireAuth, async (req: Request, res: Response):
             WHERE id = $3
         `, [keyHash, prefix, id]);
         
+        await logAuditEvent({
+            userId: req.user!.userId,
+            action: AuditActions.API_KEY_REGENERATED,
+            resourceType: 'api_key',
+            resourceId: id,
+            ...getClientInfo(req),
+        });
+
         res.json({
             message: 'API key regenerated successfully',
             key: {
@@ -266,7 +292,7 @@ router.post('/:id/regenerate', requireAuth, async (req: Request, res: Response):
 // GET /api-keys/usage — Get API key usage stats
 // ============================================================================
 
-router.get('/usage', requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get('/usage', requireAuth, requireFeature('api_access'), async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await query(`
             SELECT 

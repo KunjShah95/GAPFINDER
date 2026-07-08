@@ -4,16 +4,28 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/index.ts",
+        "dev:worker": "tsx watch src/worker.ts",
         "build": "tsc",
         "start": "node dist/index.js",
+        "start:worker": "node dist/worker.js",
+        "db:test": "powershell -ExecutionPolicy Bypass -File ../test-db-connection.ps1",
+        "db:setup": "psql -U postgres -f src/db/init-database.sql",
+        "db:setup:win": "powershell -ExecutionPolicy Bypass -File ../setup-database.ps1",
+        "db:setup:unix": "bash ../setup-database.sh",
         "db:migrate": "tsx src/db/migrate.ts",
-        "db:seed": "tsx src/db/seed.ts"
+        "db:seed": "tsx src/db/seed.ts",
+        "db:reset": "psql -U postgres -d gapminer -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && npm run db:setup",
+        "db:backup": "pg_dump -U postgres gapminer > backup-$(date +%Y%m%d-%H%M%S).sql",
+        "db:restore": "psql -U postgres gapminer < backup.sql",
+        "db:console": "psql -U postgres gapminer"
     },
     "dependencies": {
         "@sendgrid/mail": "^8.1.6",
         "@sentry/node": "^10.41.0",
         "@types/node-cron": "^3.0.11",
+        "@types/socket.io": "^3.0.1",
         "bcryptjs": "^2.4.3",
+        "bullmq": "^5.58.6",
         "cors": "^2.8.5",
         "dotenv": "^16.4.7",
         "express": "^4.21.2",
@@ -23,7 +35,10 @@
         "node-cron": "^4.2.1",
         "pg": "^8.13.1",
         "razorpay": "^2.9.6",
+        "redis": "^4.7.0",
+        "socket.io": "^4.8.3",
         "stripe": "^20.4.0",
+        "swagger-ui-express": "^5.0.1",
         "uuid": "^11.1.0",
         "zod": "^4.3.6"
     },
@@ -34,7 +49,10 @@
         "@types/jsonwebtoken": "^9.0.9",
         "@types/node": "^22.15.0",
         "@types/pg": "^8.11.11",
+        "@types/supertest": "^7.2.0",
+        "@types/swagger-ui-express": "^4.1.8",
         "@types/uuid": "^10.0.0",
+        "supertest": "^7.2.2",
         "tsx": "^4.7.0",
         "typescript": "~5.9.3"
     }

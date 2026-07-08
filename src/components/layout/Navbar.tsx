@@ -357,7 +357,7 @@ export function Navbar() {
                                             setAuthModalMode("register")
                                             setShowAuthModal(true)
                                         }}
-                                        className="btn-primary"
+                                        className="btn btn-primary"
                                     >
                                         Get Started
                                     </Button>

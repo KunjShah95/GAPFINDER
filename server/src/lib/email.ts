@@ -59,7 +59,7 @@ const TEMPLATES: Record<EmailType, { subject: string; html: string; text: string
                     <li>🎯 <strong>Get recommendations</strong> - Personalized paper suggestions</li>
                     <li>👥 <strong>Collaborate</strong> - Share gaps with your team</li>
                 </ul>
-                <p><a href="{{appUrl}}/dashboard" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Get Started</a></p>
+                <p><a href="{{appUrl}}/dashboard" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Get Started</a></p>
                 <p>Best,<br>The GapMiner Team</p>
             </div>
         `,
@@ -73,7 +73,7 @@ const TEMPLATES: Record<EmailType, { subject: string; html: string; text: string
                 <h1>Verify Your Email</h1>
                 <p>Hi {{name}},</p>
                 <p>Click the button below to verify your email address:</p>
-                <p><a href="{{verifyUrl}}" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Verify Email</a></p>
+                <p><a href="{{verifyUrl}}" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Verify Email</a></p>
                 <p>Or copy this link: {{verifyUrl}}</p>
                 <p>This link expires in 24 hours.</p>
             </div>
@@ -111,7 +111,7 @@ const TEMPLATES: Record<EmailType, { subject: string; html: string; text: string
                     <li>Gaps discovered: {{gapsCount}}</li>
                     <li>API calls: {{apiCalls}}</li>
                 </ul>
-                <p><a href="{{appUrl}}/dashboard" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Dashboard</a></p>
+                <p><a href="{{appUrl}}/dashboard" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Dashboard</a></p>
             </div>
         `,
         text: `Your Weekly Research Digest - View at {{appUrl}}/dashboard`
@@ -125,7 +125,7 @@ const TEMPLATES: Record<EmailType, { subject: string; html: string; text: string
                 <p>Hi {{name}},</p>
                 <p>New papers match your research alert:</p>
                 {{papers}}
-                <p><a href="{{appUrl}}/alerts" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View All Alerts</a></p>
+                <p><a href="{{appUrl}}/alerts" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View All Alerts</a></p>
             </div>
         `,
         text: `Alert: {{alertName}} - New papers match your alert`
@@ -159,7 +159,7 @@ const TEMPLATES: Record<EmailType, { subject: string; html: string; text: string
                 <ul>
                     {{benefits}}
                 </ul>
-                <p><a href="{{appUrl}}/dashboard" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Start Exploring</a></p>
+                <p><a href="{{appUrl}}/dashboard" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Start Exploring</a></p>
             </div>
         `,
         text: `Subscription confirmed! You're now on the {{tier}} plan.`
@@ -199,7 +199,7 @@ const TEMPLATES: Record<EmailType, { subject: string; html: string; text: string
                 <h1>👥 Team Invitation</h1>
                 <p>Hi {{name}},</p>
                 <p>{{inviterName}} has invited you to join <strong>{{teamName}}</strong> on GapMiner.</p>
-                <p><a href="{{acceptUrl}}" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Accept Invitation</a></p>
+                <p><a href="{{acceptUrl}}" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Accept Invitation</a></p>
             </div>
         `,
         text: `You've been invited to join {{teamName}}`
@@ -212,11 +212,11 @@ const TEMPLATES: Record<EmailType, { subject: string; html: string; text: string
                 <h1>📤 Gap Shared</h1>
                 <p>Hi {{name}},</p>
                 <p>{{sharerName}} shared a research gap with you:</p>
-                <blockquote style="border-left: 4px solid #6366f1; padding-left: 16px; margin: 16px 0;">
+                <blockquote style="border-left: 4px solid #f97316; padding-left: 16px; margin: 16px 0;">
                     <strong>{{gapTitle}}</strong><br>
                     {{gapProblem}}
                 </blockquote>
-                <p><a href="{{viewUrl}}" style="background: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Gap</a></p>
+                <p><a href="{{viewUrl}}" style="background: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View Gap</a></p>
             </div>
         `,
         text: `{{sharerName}} shared a research gap with you: {{gapTitle}}`

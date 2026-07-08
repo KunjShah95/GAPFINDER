@@ -133,7 +133,7 @@ export default function AlertsPage() {
           { label: "Unread", value: alerts.reduce((s, a) => s + (a.unread_count ?? 0), 0), icon: Bell },
           { label: "This Week", value: alerts.filter(a => a.frequency === "weekly").length, icon: Calendar },
         ].map((stat) => (
-          <div key={stat.label} className="card p-5">
+          <div key={stat.label} className="glass-card p-5 cursor-default">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-3xl font-bold">{stat.value}</p>
@@ -170,7 +170,7 @@ export default function AlertsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="card p-6 w-full max-w-md space-y-5"
+              className="glass-card p-6 w-full max-w-md space-y-5"
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold">New Alert</h2>
@@ -257,12 +257,12 @@ export default function AlertsPage() {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : error ? (
-        <div className="card p-12 text-center space-y-3">
+        <div className="glass-card p-12 text-center space-y-3 cursor-default">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
           <p className="text-muted-foreground">Failed to load alerts. Please try again.</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="card p-12 text-center space-y-4">
+        <div className="glass-card p-12 text-center space-y-4 cursor-default">
           <Bell className="w-16 h-16 text-muted-foreground/40 mx-auto" />
           <div>
             <p className="text-lg font-medium">No alerts yet</p>
@@ -281,7 +281,7 @@ export default function AlertsPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="card p-5"
+              className="glass-card p-5 cursor-default"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 flex-1 min-w-0">

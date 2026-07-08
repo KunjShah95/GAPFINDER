@@ -124,7 +124,7 @@ export default function CollectionsPage() {
           { label: "Total Gaps", value: collections.reduce((s, c) => s + c.gap_count, 0) },
           { label: "Starred", value: collections.filter(c => c.starred).length },
         ].map((stat) => (
-          <div key={stat.label} className="card p-5">
+          <div key={stat.label} className="glass-card p-5 cursor-default">
             <p className="text-3xl font-bold">{stat.value}</p>
             <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
           </div>
@@ -144,7 +144,7 @@ export default function CollectionsPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="card p-6 w-full max-w-md space-y-5"
+              className="glass-card p-6 w-full max-w-md space-y-5"
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold">New Collection</h2>
@@ -217,12 +217,12 @@ export default function CollectionsPage() {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : error ? (
-        <div className="card p-12 text-center space-y-3">
+        <div className="glass-card p-12 text-center space-y-3 cursor-default">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
           <p className="text-muted-foreground">Failed to load collections. Please try again.</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="card p-12 text-center space-y-4">
+        <div className="glass-card p-12 text-center space-y-4 cursor-default">
           <FolderOpen className="w-16 h-16 text-muted-foreground/40 mx-auto" />
           <div>
             <p className="text-lg font-medium">No collections yet</p>
@@ -241,7 +241,7 @@ export default function CollectionsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="card card-hover p-6 cursor-pointer group"
+              className="glass-card p-6 cursor-pointer group"
             >
               <div className="flex items-start justify-between mb-4">
                 <div

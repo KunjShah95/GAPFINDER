@@ -171,11 +171,11 @@ export function TeamSettingsPage() {
                 <div className="container-wide max-w-2xl mx-auto">
                     <Card>
                         <CardContent className="pt-12 pb-12 text-center">
-                            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[hsl(var(--brand-primary))] to-[hsl(var(--brand-secondary))] flex items-center justify-center mx-auto mb-6">
+                            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[rgb(249 115 22)] to-[rgb(245 158 11)] flex items-center justify-center mx-auto mb-6">
                                 <Building2 className="h-8 w-8 text-white" />
                             </div>
                             <h2 className="text-2xl font-bold mb-2">Create Your First Team</h2>
-                            <p className="text-[hsl(var(--muted-foreground))] mb-8 max-w-md mx-auto">
+                            <p className="text-[rgb(var(--text-secondary))] mb-8 max-w-md mx-auto">
                                 Teams let you collaborate with colleagues, share research, and manage access together.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
@@ -213,7 +213,7 @@ export function TeamSettingsPage() {
                             <br />
                             <span className="gradient-text">Settings</span>
                         </h1>
-                        <p className="text-lg text-[hsl(var(--muted-foreground))] max-w-2xl">
+                        <p className="text-lg text-[rgb(var(--text-secondary))] max-w-2xl">
                             Manage team members, roles, and collaboration settings.
                         </p>
                     </div>
@@ -226,7 +226,7 @@ export function TeamSettingsPage() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-1 p-1 rounded-lg bg-[hsl(var(--muted))] w-fit mb-8">
+                <div className="flex gap-1 p-1 rounded-lg bg-[rgb(255 255 255 / 0.06)] w-fit mb-8">
                     {[
                         { id: "members", label: "Members", icon: Users },
                         { id: "invites", label: "Invites", icon: Mail, show: can("canInviteMembers") },
@@ -239,8 +239,8 @@ export function TeamSettingsPage() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.id
-                                    ? "bg-[hsl(var(--card))] text-foreground shadow-sm"
-                                    : "text-[hsl(var(--muted-foreground))] hover:text-foreground"
+                                    ? "bg-[rgb(var(--text-primary))] text-[rgb(var(--text-primary))] shadow-sm"
+                                    : "text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))]"
                                     }`}
                             >
                                 <Icon className="h-4 w-4" />
@@ -267,7 +267,7 @@ export function TeamSettingsPage() {
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: idx * 0.05 }}
-                                        className="flex items-center justify-between p-4 rounded-lg border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]/50 transition-colors"
+                                        className="flex items-center justify-between p-4 rounded-lg border border-[rgb(255 255 255 / 0.08)] hover:bg-[rgb(255 255 255 / 0.06)]/50 transition-colors"
                                     >
                                         <div className="flex items-center gap-3">
                                             <div
@@ -285,7 +285,7 @@ export function TeamSettingsPage() {
                                                         <Crown className="h-4 w-4 text-yellow-500" />
                                                     )}
                                                 </p>
-                                                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                                                <p className="text-sm text-[rgb(var(--text-secondary))]">
                                                     {member.email}
                                                 </p>
                                             </div>
@@ -302,17 +302,17 @@ export function TeamSettingsPage() {
                                                     <Button variant="ghost" size="sm">
                                                         <MoreVertical className="h-4 w-4" />
                                                     </Button>
-                                                    <div className="absolute right-0 top-full mt-1 py-1 w-40 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                                                    <div className="absolute right-0 top-full mt-1 py-1 w-40 bg-[rgb(var(--text-primary))] border border-[rgb(255 255 255 / 0.08)] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                                                         {(["admin", "member", "viewer"] as TeamRole[]).map(role => (
                                                             <button
                                                                 key={role}
                                                                 onClick={() => handleChangeRole(member.id!, role)}
-                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-[hsl(var(--muted))] transition-colors"
+                                                                className="w-full px-3 py-2 text-left text-sm hover:bg-[rgb(255 255 255 / 0.06)] transition-colors"
                                                             >
                                                                 Make {getRoleDisplayName(role)}
                                                             </button>
                                                         ))}
-                                                        <hr className="my-1 border-[hsl(var(--border))]" />
+                                                        <hr className="my-1 border-[rgb(255 255 255 / 0.08)]" />
                                                         <button
                                                             onClick={() => handleRemoveMember(member.id!)}
                                                             className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-500/10 transition-colors"
@@ -341,7 +341,7 @@ export function TeamSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             {invites.length === 0 ? (
-                                <div className="text-center py-12 text-[hsl(var(--muted-foreground))]">
+                                <div className="text-center py-12 text-[rgb(var(--text-secondary))]">
                                     <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                     <p>No pending invites</p>
                                 </div>
@@ -353,15 +353,15 @@ export function TeamSettingsPage() {
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: idx * 0.05 }}
-                                            className="flex items-center justify-between p-4 rounded-lg border border-[hsl(var(--border))]"
+                                            className="flex items-center justify-between p-4 rounded-lg border border-[rgb(255 255 255 / 0.08)]"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center">
-                                                    <Mail className="h-5 w-5 text-[hsl(var(--muted-foreground))]" />
+                                                <div className="h-10 w-10 rounded-full bg-[rgb(255 255 255 / 0.06)] flex items-center justify-center">
+                                                    <Mail className="h-5 w-5 text-[rgb(var(--text-secondary))]" />
                                                 </div>
                                                 <div>
                                                     <p className="font-medium">{invite.email}</p>
-                                                    <p className="text-sm text-[hsl(var(--muted-foreground))] flex items-center gap-1">
+                                                    <p className="text-sm text-[rgb(var(--text-secondary))] flex items-center gap-1">
                                                         <Clock className="h-3 w-3" />
                                                         Expires {invite.expiresAt.toDate().toLocaleDateString()}
                                                     </p>
@@ -399,7 +399,7 @@ export function TeamSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             {auditLogs.length === 0 ? (
-                                <div className="text-center py-12 text-[hsl(var(--muted-foreground))]">
+                                <div className="text-center py-12 text-[rgb(var(--text-secondary))]">
                                     <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                     <p>No activity yet</p>
                                 </div>
@@ -411,16 +411,16 @@ export function TeamSettingsPage() {
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: idx * 0.02 }}
-                                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-[hsl(var(--muted))]/50 transition-colors"
+                                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-[rgb(255 255 255 / 0.06)]/50 transition-colors"
                                         >
-                                            <div className="h-8 w-8 rounded-full bg-[hsl(var(--muted))] flex items-center justify-center">
-                                                <Activity className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
+                                            <div className="h-8 w-8 rounded-full bg-[rgb(255 255 255 / 0.06)] flex items-center justify-center">
+                                                <Activity className="h-4 w-4 text-[rgb(var(--text-secondary))]" />
                                             </div>
                                             <div className="flex-1">
                                                 <p className="text-sm">
                                                     <span className="font-medium">{log.action.replace(".", " ").replace("_", " ")}</span>
                                                 </p>
-                                                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                                                <p className="text-xs text-[rgb(var(--text-secondary))]">
                                                     {log.createdAt.toDate().toLocaleString()}
                                                 </p>
                                             </div>
@@ -443,13 +443,13 @@ export function TeamSettingsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-6">
-                                <div className="p-4 rounded-lg border border-[hsl(var(--border))]">
+                                <div className="p-4 rounded-lg border border-[rgb(255 255 255 / 0.08)]">
                                     <h3 className="font-medium mb-2">Team Name</h3>
                                     <Input defaultValue={currentTeam?.name} className="max-w-md" />
                                 </div>
-                                <div className="p-4 rounded-lg border border-[hsl(var(--border))]">
+                                <div className="p-4 rounded-lg border border-[rgb(255 255 255 / 0.08)]">
                                     <h3 className="font-medium mb-2">Default Role for New Members</h3>
-                                    <select className="px-3 py-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+                                    <select className="px-3 py-2 rounded-lg border border-[rgb(255 255 255 / 0.08)] bg-[rgb(var(--text-primary))]">
                                         <option value="member">Member</option>
                                         <option value="viewer">Viewer</option>
                                     </select>
@@ -459,7 +459,7 @@ export function TeamSettingsPage() {
                                         <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
                                         <div>
                                             <h3 className="font-medium text-red-500">Danger Zone</h3>
-                                            <p className="text-sm text-[hsl(var(--muted-foreground))] mb-4">
+                                            <p className="text-sm text-[rgb(var(--text-secondary))] mb-4">
                                                 Deleting a team is permanent and cannot be undone.
                                             </p>
                                             <Button variant="destructive" size="sm">
@@ -492,25 +492,25 @@ export function TeamSettingsPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="relative z-10 w-full max-w-md mx-4 bg-[hsl(var(--card))] rounded-2xl border border-[hsl(var(--border))] shadow-xl p-6"
+                            className="relative z-10 w-full max-w-md mx-4 bg-[rgb(var(--text-primary))] rounded-2xl border border-[rgb(255 255 255 / 0.08)] shadow-xl p-6"
                         >
                             <button
                                 onClick={() => {
                                     setShowInviteModal(false)
                                     setInviteLink("")
                                 }}
-                                className="absolute top-4 right-4 p-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
+                                className="absolute top-4 right-4 p-2 rounded-lg hover:bg-[rgb(255 255 255 / 0.06)] transition-colors"
                             >
                                 <X className="h-4 w-4" />
                             </button>
 
                             <div className="flex items-center gap-3 mb-6">
-                                <div className="h-10 w-10 rounded-lg bg-[hsl(var(--brand-primary))]/10 flex items-center justify-center">
-                                    <UserPlus className="h-5 w-5 text-[hsl(var(--brand-primary))]" />
+                                <div className="h-10 w-10 rounded-lg bg-[rgb(249 115 22 / 0.1)] flex items-center justify-center">
+                                    <UserPlus className="h-5 w-5 text-[rgb(251 146 60)]" />
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-bold">Invite Team Member</h2>
-                                    <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                                    <p className="text-sm text-[rgb(var(--text-secondary))]">
                                         Send an invite link via email
                                     </p>
                                 </div>
@@ -523,7 +523,7 @@ export function TeamSettingsPage() {
                                             <Check className="h-4 w-4" />
                                             <span className="font-medium">Invite Created!</span>
                                         </div>
-                                        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                                        <p className="text-sm text-[rgb(var(--text-secondary))]">
                                             Share this link with {inviteEmail}
                                         </p>
                                     </div>
@@ -561,7 +561,7 @@ export function TeamSettingsPage() {
                                         <select
                                             value={inviteRole}
                                             onChange={(e) => setInviteRole(e.target.value as TeamRole)}
-                                            className="w-full px-3 py-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]"
+                                            className="w-full px-3 py-2 rounded-lg border border-[rgb(255 255 255 / 0.08)] bg-[rgb(var(--text-primary))]"
                                         >
                                             <option value="admin">Admin - Can manage members</option>
                                             <option value="member">Member - Can edit papers</option>

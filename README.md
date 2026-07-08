@@ -6,7 +6,7 @@ GapMiner is an AI-powered research tool that automatically extracts limitations,
 
 ![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
-![Firebase](https://img.shields.io/badge/Firebase-12.7-FFCA28?logo=firebase&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7.2-646CFF?logo=vite&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.1-06B6D4?logo=tailwindcss&logoColor=white)
 
@@ -19,12 +19,12 @@ GapMiner is an AI-powered research tool that automatically extracts limitations,
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
 - [Environment Setup](#-environment-setup)
-- [Firebase Setup](#-firebase-setup)
+- [Database Setup](#-database-setup)
 - [Local Development](#-local-development)
 - [Deployment](#-deployment)
   - [Vercel](#vercel-recommended)
   - [Netlify](#netlify)
-  - [Firebase Hosting](#firebase-hosting)
+  - [Static Hosting](#static-hosting)
 - [Project Structure](#-project-structure)
 - [API Keys](#-api-keys)
 - [Troubleshooting](#-troubleshooting)
@@ -39,8 +39,8 @@ GapMiner is an AI-powered research tool that automatically extracts limitations,
 - **🤖 AI-Powered Gap Analysis** - Leverage Google Gemini to identify research limitations and unsolved problems
 - **📊 Gap Categorization** - Automatically classify gaps into data, compute, evaluation, and methodology types
 - **📚 Collections Management** - Organize discovered gaps into custom collections
-- **🔐 Secure Authentication** - Firebase Auth with Email/Password and Google OAuth
-- **☁️ Cloud Storage** - Persist results with Firestore database
+- **🔐 Secure Authentication** - JWT auth through the backend API
+- **☁️ Cloud Storage** - Persist results in PostgreSQL through the backend API
 - **🎨 Modern UI** - Beautiful, responsive interface with dark mode and smooth animations
 
 ---
@@ -51,7 +51,7 @@ GapMiner is an AI-powered research tool that automatically extracts limitations,
 |----------|-------------|
 | **Frontend** | React 19, TypeScript, Tailwind CSS 4, Framer Motion |
 | **Build Tool** | Vite (Rolldown) |
-| **Backend Services** | Firebase (Auth, Firestore) |
+| **Backend Services** | Express, PostgreSQL, JWT auth |
 | **AI/ML** | Google Gemini 2.0 Flash |
 | **Web Scraping** | Firecrawl API |
 | **Routing** | React Router v7 |
@@ -65,7 +65,7 @@ Before you begin, ensure you have the following installed:
 
 - **Node.js** ≥ 18.0.0
 - **npm** ≥ 9.0.0 or **pnpm** ≥ 8.0.0
-- A **Firebase** account ([firebase.google.com](https://firebase.google.com))
+- A **PostgreSQL** database ([postgresql.org](https://www.postgresql.org))
 - A **Firecrawl** API key ([firecrawl.dev](https://firecrawl.dev))
 - A **Google AI Studio** API key ([aistudio.google.com](https://aistudio.google.com))
 
@@ -109,108 +109,68 @@ cp .env.example .env
 Edit `.env` with your credentials:
 
 ```env
-# Firebase Configuration
-VITE_FIREBASE_API_KEY=your_firebase_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+# Frontend API base URL
+VITE_API_URL=http://localhost:3001/api
 
 # Firecrawl API
 VITE_FIRECRAWL_API_KEY=your_firecrawl_api_key
 
 # Gemini API
 VITE_GEMINI_API_KEY=your_gemini_api_key
+
+# Server-only secrets are loaded by the backend from server/.env or the repo root .env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/gapminer
+JWT_SECRET=replace-with-a-long-random-secret
+REDIS_URL=redis://localhost:6379
 ```
 
 > ⚠️ **Important**: Never commit your `.env` file to version control. It's already included in `.gitignore`.
 
 ---
 
-## 🔥 Firebase Setup
+## 🗄️ Database Setup
 
-### 1. Create a Firebase Project
+### 1. Local PostgreSQL Installation
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click **"Add Project"**
-3. Enter project name (e.g., `gapminer`)
-4. Disable Google Analytics (optional)
-5. Click **"Create Project"**
+1. Install PostgreSQL 14+ (https://www.postgresql.org/download/windows/)
+2. Create a `gapminer` database and a database user if needed.
+3. Optional: install Redis if you plan to run the queue/cron workers locally.
 
-### 2. Enable Authentication
+### 2. Initialize the Database
 
-1. In Firebase Console, go to **Build > Authentication**
-2. Click **"Get Started"**
-3. Enable **Email/Password** provider:
-   - Click on Email/Password
-   - Toggle "Enable" on
-   - Save
-4. Enable **Google** provider:
-   - Click on Google
-   - Toggle "Enable" on
-   - Enter your project's public-facing name
-   - Select support email
-   - Save
-
-### 3. Create Firestore Database
-
-1. Go to **Build > Firestore Database**
-2. Click **"Create Database"**
-3. Select **"Start in production mode"**
-4. Choose your preferred location (e.g., `us-central1`)
-5. Click **"Enable"**
-
-### 4. Configure Firestore Security Rules
-
-In Firestore, go to **Rules** tab and update with:
-
-```javascript
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users can only access their own data
-    match /crawlResults/{docId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-    
-    match /collections/{docId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-  }
-}
+```cmd
+cd C:\GAPFINDER\server
+npm install
+npm run db:setup:win
 ```
 
-### 5. Create Firestore Indexes
+Or, if PostgreSQL is already running and `DATABASE_URL` is set:
 
-For optimal query performance, create the following composite indexes:
+```cmd
+npm run db:setup:win
+```
 
-**crawlResults collection:**
-| Field | Order |
-|-------|-------|
-| userId | Ascending |
-| createdAt | Descending |
+### 3. Apply Migrations and Seed Demo Data
 
-**collections collection:**
-| Field | Order |
-|-------|-------|
-| userId | Ascending |
-| createdAt | Descending |
+```cmd
+npm run db:migrate
+npm run db:seed
+```
 
-### 6. Get Firebase Configuration
+### 4. Configure Backend Connection
 
-1. Go to **Project Settings** (gear icon)
-2. Scroll to **"Your apps"** section
-3. Click **"Web"** (</> icon)
-4. Register your app with a nickname
-5. Copy the `firebaseConfig` values to your `.env` file
+The backend reads its database connection from `DATABASE_URL` in `server/.env` or the repo root `.env`:
+
+```env
+DATABASE_URL=postgresql://postgres:password@localhost:5432/gapminer
+```
+
+### 5. What the frontend uses
+
+The React app talks to the backend through `VITE_API_URL` and stores research data in PostgreSQL via the API.
+There is no Firestore setup step for the core app flow.
+
+> ⚠️ **Important**: Never commit your `.env` file to version control. It's already included in `.gitignore`.
 
 ---
 
@@ -331,60 +291,16 @@ A `netlify.toml` configuration file is already included in the project root:
 
 ---
 
-### Firebase Hosting
+### Static Hosting
 
-#### 1. Install Firebase CLI
+You can deploy the built frontend (`dist/`) to any static hosting provider that supports SPA rewrites, such as:
 
-```bash
-npm install -g firebase-tools
-```
+- Vercel
+- Netlify
+- Cloudflare Pages
+- GitHub Pages with a client-side router fallback
 
-#### 2. Login to Firebase
-
-```bash
-firebase login
-```
-
-#### 3. Initialize Firebase Hosting
-
-```bash
-firebase init hosting
-```
-
-Select options:
-- Use an existing project: Select your Firebase project
-- Public directory: `dist`
-- Configure as single-page app: `Yes`
-- Set up automatic builds: `No`
-
-#### 4. Build and Deploy
-
-```bash
-# Build the project
-npm run build
-
-# Deploy to Firebase
-firebase deploy --only hosting
-```
-
-#### Firebase Configuration
-
-A `firebase.json` configuration file is already included in the project root:
-
-```json
-{
-  "hosting": {
-    "public": "dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
-}
-```
+Build the app with `npm run build`, then configure your host to serve `dist/index.html` for unknown routes.
 
 ---
 
@@ -403,8 +319,8 @@ gapminer/
 │   │   └── AuthContext.tsx
 │   ├── lib/               # Utility libraries and services
 │   │   ├── api.ts         # Firecrawl & Gemini API integration
-│   │   ├── firebase.ts    # Firebase initialization
-│   │   ├── firestore.ts   # Firestore database operations
+│   │   ├── firebase.ts    # Legacy compatibility shim used by a few feature modules
+│   │   ├── firestore.ts   # Backend API-backed persistence helpers
 │   │   └── utils.ts       # Utility functions
 │   ├── pages/             # Page components
 │   │   ├── AssistantPage.tsx
@@ -449,13 +365,11 @@ gapminer/
 4. Create API key in a new or existing project
 5. Copy the key to `VITE_GEMINI_API_KEY`
 
-### Firebase Configuration
+### Backend API Configuration
 
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Select your project
-3. Go to **Project Settings** (gear icon)
-4. Scroll to **"Your apps"** section
-5. Copy each config value to the corresponding `VITE_FIREBASE_*` variable
+1. Confirm `VITE_API_URL` points to the backend API, for example `http://localhost:3001/api`
+2. Set `DATABASE_URL` for the PostgreSQL backend
+3. Make sure `JWT_SECRET` and `GEMINI_API_KEY` are set for server-side auth and analysis
 
 ---
 
@@ -463,12 +377,12 @@ gapminer/
 
 ### Common Issues
 
-#### "Firebase: Error (auth/unauthorized-domain)"
+#### "401 Unauthorized" from the backend
 
-**Solution**: Add your deployment domain to Firebase authorized domains:
-1. Go to Firebase Console > Authentication > Settings
-2. Under **Authorized domains**, click **"Add domain"**
-3. Add your Vercel/Netlify domain (e.g., `your-app.vercel.app`)
+**Solution**: Check the API auth configuration:
+1. Verify the backend is running on the URL in `VITE_API_URL`
+2. Clear stale access tokens from localStorage and sign in again
+3. Confirm `JWT_SECRET` is consistent across backend restarts in the same environment
 
 #### "Firecrawl API error: 401"
 
@@ -477,12 +391,12 @@ gapminer/
 2. Ensure the API key is active in your Firecrawl dashboard
 3. Check for any leading/trailing whitespace
 
-#### "Missing or insufficient permissions" (Firestore)
+#### "Database connection failed"
 
-**Solution**: Update Firestore security rules:
-1. Go to Firestore > Rules
-2. Ensure rules allow authenticated users to read/write their own data
-3. Publish the updated rules
+**Solution**: Check the PostgreSQL connection:
+1. Verify `DATABASE_URL` points at a reachable PostgreSQL instance
+2. Run `npm run db:setup:win` or `npm run db:migrate` from `server/`
+3. Confirm the database has the `papers`, `gaps`, `collections`, and `api_usage_logs` tables
 
 #### "Cannot find module '@/...'"
 
@@ -502,7 +416,7 @@ gapminer/
 
 - Open an issue on [GitHub Issues](https://github.com/yourusername/gapminer/issues)
 - Check [Vite documentation](https://vite.dev)
-- Check [Firebase documentation](https://firebase.google.com/docs)
+- Check [PostgreSQL documentation](https://www.postgresql.org/docs/)
 
 ---
 
@@ -536,7 +450,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Firecrawl](https://firecrawl.dev) for powerful web scraping
 - [Google Gemini](https://ai.google.dev) for AI-powered analysis
-- [Firebase](https://firebase.google.com) for backend services
+- [PostgreSQL](https://www.postgresql.org) for reliable data storage
 - [Vite](https://vite.dev) for lightning-fast builds
 - [Tailwind CSS](https://tailwindcss.com) for utility-first styling
 

@@ -15,7 +15,7 @@ export default function GrantsPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Grant Opportunities</h1>
           <p className="text-slate-400 mt-1">Find and match grants to your research gaps</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl font-medium"><Search className="w-4 h-4" /> Match to Gaps</button>
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full font-medium"><Search className="w-4 h-4" /> Match to Gaps</button>
       </div>
 
       <div className="grid gap-4">

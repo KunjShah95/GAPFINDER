@@ -32,6 +32,31 @@ export const config = {
     // Database
     databaseUrl: requireEnv('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/gapminer'),
     dbPoolMax: parseInt(process.env.DB_POOL_MAX || '20', 10),
+    dbPoolIdleTimeoutMs: parseInt(process.env.DB_POOL_IDLE_TIMEOUT_MS || '30000', 10),
+    dbConnectionTimeoutMs: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || '5000', 10),
+
+    // Redis / Queue
+    redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+    redisRetryMaxRetries: parseInt(process.env.REDIS_RETRY_MAX_RETRIES || '3', 10),
+    redisRetryInitialDelayMs: parseInt(process.env.REDIS_RETRY_INITIAL_DELAY_MS || '50', 10),
+    redisRetryMaxDelayMs: parseInt(process.env.REDIS_RETRY_MAX_DELAY_MS || '3000', 10),
+    queuePrefix: process.env.QUEUE_PREFIX || 'gapminer',
+    queueConcurrency: parseInt(process.env.QUEUE_CONCURRENCY || '5', 10),
+    queueDefaultRetries: parseInt(process.env.QUEUE_DEFAULT_RETRIES || '3', 10),
+    queueBackoffDelayMs: parseInt(process.env.QUEUE_BACKOFF_DELAY || '1000', 10),
+
+    // Batch Processing
+    batchWindowMs: parseInt(process.env.BATCH_WINDOW_MS || '300000', 10), // 5 min aggregation window
+    batchMaxItems: parseInt(process.env.BATCH_MAX_ITEMS || '50', 10),     // max items per batch
+    batchConcurrency: parseInt(process.env.BATCH_CONCURRENCY || '2', 10), // lower than real-time
+
+    // Circuit Breaker (for external APIs)
+    circuitBreakerFailureThreshold: parseInt(process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD || '5', 10),
+    circuitBreakerSuccessThreshold: parseInt(process.env.CIRCUIT_BREAKER_SUCCESS_THRESHOLD || '2', 10),
+    circuitBreakerTimeoutMs: parseInt(process.env.CIRCUIT_BREAKER_TIMEOUT_MS || '60000', 10),
+
+    // Scheduled Jobs
+    runLatestPapersCron: (process.env.RUN_LATEST_PAPERS_CRON || 'true').toLowerCase() === 'true',
 
     // Auth
     jwtSecret: requireEnv('JWT_SECRET', 'dev-secret-change-in-production-min-32-chars!!'),
@@ -60,12 +85,12 @@ export const config = {
         max: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
     },
 
-    // Subscription Limits
+    // Subscription Limits (must match feature-gates.ts TIER_QUOTAS)
     limits: {
-        free: { papersPerMonth: 10, gapsPerPaper: 20, apiCallsPerDay: 50 },
-        pro: { papersPerMonth: 100, gapsPerPaper: 50, apiCallsPerDay: 500 },
-        team: { papersPerMonth: 500, gapsPerPaper: 100, apiCallsPerDay: 2000 },
-        enterprise: { papersPerMonth: -1, gapsPerPaper: -1, apiCallsPerDay: -1 },
+        free: { papersPerMonth: 50, gapExtractionsPerMonth: 100, apiCallsPerDay: 10, collections: 5, exportsPerMonth: 10, chatMessagesPerMonth: 20, workflows: 2, alerts: 3 },
+        pro: { papersPerMonth: 1000, gapExtractionsPerMonth: 1000, apiCallsPerDay: 10000, collections: 50, exportsPerMonth: 200, chatMessagesPerMonth: 1000, workflows: 20, alerts: 20 },
+        team: { papersPerMonth: -1, gapExtractionsPerMonth: -1, apiCallsPerDay: 100000, collections: -1, exportsPerMonth: -1, chatMessagesPerMonth: -1, workflows: -1, alerts: -1 },
+        enterprise: { papersPerMonth: -1, gapExtractionsPerMonth: -1, apiCallsPerDay: -1, collections: -1, exportsPerMonth: -1, chatMessagesPerMonth: -1, workflows: -1, alerts: -1 },
     },
 } as const;
 

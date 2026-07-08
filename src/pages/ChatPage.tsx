@@ -59,7 +59,7 @@ export default function ChatPage() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">Research Chat</h1>
           <p className="text-slate-400 mt-1">Chat with your entire paper library using AI</p>
         </div>
-        <button onClick={handleClear} className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors">
+        <button onClick={handleClear} className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors">
           <Plus className="w-4 h-4" /> New Chat
         </button>
       </div>
@@ -109,7 +109,7 @@ export default function ChatPage() {
                 <Send className="w-4 h-4" />
               </button>
             </div>
-            <button className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-lg">
+            <button className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full">
               <Sparkles className="w-4 h-4" /> AI Mode
             </button>
           </div>

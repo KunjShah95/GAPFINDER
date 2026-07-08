@@ -36,12 +36,12 @@ export function PrimeHero() {
             </h1>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-6">
-              <button onClick={() => navigate('/dashboard')} className="btn-primary w-full sm:w-auto px-6 py-3 text-base flex items-center justify-center gap-2" aria-label="Start discovering">
+              <button onClick={() => navigate('/dashboard')} className="btn btn-primary w-full sm:w-auto px-6 py-3 text-base flex items-center justify-center gap-2" aria-label="Start discovering">
                 Start discovering
                 <ArrowRight className="w-4 h-4" />
               </button>
 
-              <button aria-label="Watch demo" className="btn-secondary w-full sm:w-auto px-5 py-3 text-base flex items-center justify-center gap-2">
+              <button aria-label="Watch demo" className="btn btn-secondary w-full sm:w-auto px-5 py-3 text-base flex items-center justify-center gap-2">
                 <Play className="w-4 h-4" />
                 Watch demo
               </button>

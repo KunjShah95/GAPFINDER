@@ -70,7 +70,7 @@ export default function AdminPage() {
     if (!isAdmin || !user) {
         return (
             <div className="flex items-center justify-center h-64">
-                <p className="text-[rgb(var(--muted-foreground))]">Access denied. Admin privileges required.</p>
+                <p className="text-[rgb(var(--text-secondary))]">Access denied. Admin privileges required.</p>
             </div>
         )
     }
@@ -95,7 +95,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                    <p className="text-[rgb(var(--muted-foreground))]">Manage your GapMiner organization</p>
+                    <p className="text-[rgb(var(--text-secondary))]">Manage your GapMiner organization</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
@@ -114,11 +114,11 @@ export default function AdminPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                        <Users className="h-4 w-4 text-[rgb(var(--muted-foreground))]" />
+                        <Users className="h-4 w-4 text-[rgb(var(--text-secondary))]" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
-                        <p className="text-xs text-[rgb(var(--muted-foreground))]">
+                        <p className="text-xs text-[rgb(var(--text-secondary))]">
                             +156 this month
                         </p>
                     </CardContent>
@@ -127,11 +127,11 @@ export default function AdminPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-                        <CreditCard className="h-4 w-4 text-[rgb(var(--muted-foreground))]" />
+                        <CreditCard className="h-4 w-4 text-[rgb(var(--text-secondary))]" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{formatCurrency(stats.monthlyRevenue)}</div>
-                        <p className="text-xs text-[rgb(var(--muted-foreground))]">
+                        <p className="text-xs text-[rgb(var(--text-secondary))]">
                             +18.2% from last month
                         </p>
                     </CardContent>
@@ -140,11 +140,11 @@ export default function AdminPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Papers Processed</CardTitle>
-                        <FileSearch className="h-4 w-4 text-[rgb(var(--muted-foreground))]" />
+                        <FileSearch className="h-4 w-4 text-[rgb(var(--text-secondary))]" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.papersProcessedToday.toLocaleString()}</div>
-                        <p className="text-xs text-[rgb(var(--muted-foreground))]">
+                        <p className="text-xs text-[rgb(var(--text-secondary))]">
                             Today
                         </p>
                     </CardContent>
@@ -153,11 +153,11 @@ export default function AdminPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Churn Rate</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-[rgb(var(--muted-foreground))]" />
+                        <TrendingUp className="h-4 w-4 text-[rgb(var(--text-secondary))]" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.churnRate}%</div>
-                        <p className="text-xs text-[rgb(var(--muted-foreground))]">
+                        <p className="text-xs text-[rgb(var(--text-secondary))]">
                             -0.5% from last month
                         </p>
                     </CardContent>
@@ -176,21 +176,21 @@ export default function AdminPage() {
                             {users.map((user) => (
                                 <div key={user.id} className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-[rgb(var(--primary))]/10 flex items-center justify-center">
-                                            <span className="text-sm font-medium text-[rgb(var(--primary))]">
+                                        <div className="w-10 h-10 rounded-full bg-[rgb(249 115 22 / 0.1)] flex items-center justify-center">
+                                            <span className="text-sm font-medium text-[rgb(251 146 60)]">
                                                 {user.name.split(" ").map(n => n[0]).join("")}
                                             </span>
                                         </div>
                                         <div>
                                             <p className="text-sm font-medium">{user.name}</p>
-                                            <p className="text-xs text-[rgb(var(--muted-foreground))]">{user.email}</p>
+                                            <p className="text-xs text-[rgb(var(--text-secondary))]">{user.email}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
                                         <Badge variant={user.subscription === "Enterprise" ? "default" : "secondary"}>
                                             {user.subscription}
                                         </Badge>
-                                        <p className="text-xs text-[rgb(var(--muted-foreground))] mt-1">{user.lastActive}</p>
+                                        <p className="text-xs text-[rgb(var(--text-secondary))] mt-1">{user.lastActive}</p>
                                     </div>
                                 </div>
                             ))}
@@ -205,7 +205,7 @@ export default function AdminPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 bg-[rgb(var(--muted))]/50 rounded-lg">
+                            <div className="flex items-center justify-between p-3 bg-[rgb(255 255 255 / 0.04)] rounded-lg">
                                 <div className="flex items-center gap-3">
                                     <Activity className="w-5 h-5 text-green-500" />
                                     <span className="text-sm">API Services</span>
@@ -213,7 +213,7 @@ export default function AdminPage() {
                                 <Badge className="bg-green-500/10 text-green-600">Operational</Badge>
                             </div>
 
-                            <div className="flex items-center justify-between p-3 bg-[rgb(var(--muted))]/50 rounded-lg">
+                            <div className="flex items-center justify-between p-3 bg-[rgb(255 255 255 / 0.04)] rounded-lg">
                                 <div className="flex items-center gap-3">
                                     <Activity className="w-5 h-5 text-green-500" />
                                     <span className="text-sm">Database</span>
@@ -221,7 +221,7 @@ export default function AdminPage() {
                                 <Badge className="bg-green-500/10 text-green-600">Connected</Badge>
                             </div>
 
-                            <div className="flex items-center justify-between p-3 bg-[rgb(var(--muted))]/50 rounded-lg">
+                            <div className="flex items-center justify-between p-3 bg-[rgb(255 255 255 / 0.04)] rounded-lg">
                                 <div className="flex items-center gap-3">
                                     <Activity className="w-5 h-5 text-yellow-500" />
                                     <span className="text-sm">AI Processing</span>
@@ -229,7 +229,7 @@ export default function AdminPage() {
                                 <Badge className="bg-yellow-500/10 text-yellow-600">High Load</Badge>
                             </div>
 
-                            <div className="flex items-center justify-between p-3 bg-[rgb(var(--muted))]/50 rounded-lg">
+                            <div className="flex items-center justify-between p-3 bg-[rgb(255 255 255 / 0.04)] rounded-lg">
                                 <div className="flex items-center gap-3">
                                     <Activity className="w-5 h-5 text-green-500" />
                                     <span className="text-sm">Email Service</span>

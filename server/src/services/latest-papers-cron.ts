@@ -43,6 +43,56 @@ const DEFAULT_TOPICS = [
 // Papers to fetch per source per run
 const PAPERS_PER_SOURCE = 20;
 
+// Ensure the tables used by this service exist, even on databases that were
+// created before the latest migrations were added.
+export async function ensureLatestPapersTables(): Promise<void> {
+    await query(`
+        CREATE TABLE IF NOT EXISTS latest_papers (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            external_id TEXT NOT NULL,
+            source VARCHAR(50) NOT NULL,
+            publisher VARCHAR(50) NOT NULL,
+            title TEXT NOT NULL,
+            abstract TEXT,
+            url TEXT NOT NULL,
+            authors TEXT[] DEFAULT '{}',
+            venue VARCHAR(255),
+            year INT,
+            published_at TIMESTAMPTZ,
+            fetched_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE (external_id, publisher)
+        )
+    `);
+
+    await query(`
+        CREATE INDEX IF NOT EXISTS idx_latest_papers_publisher ON latest_papers (publisher)
+    `);
+
+    await query(`
+        CREATE INDEX IF NOT EXISTS idx_latest_papers_published ON latest_papers (published_at DESC)
+    `);
+
+    await query(`
+        CREATE INDEX IF NOT EXISTS idx_latest_papers_fetched ON latest_papers (fetched_at DESC)
+    `);
+
+    await query(`
+        CREATE TABLE IF NOT EXISTS cron_run_log (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            job_name VARCHAR(100) NOT NULL,
+            started_at TIMESTAMPTZ DEFAULT NOW(),
+            finished_at TIMESTAMPTZ,
+            papers_fetched INT DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'running' CHECK (status IN ('running', 'success', 'failed')),
+            error_msg TEXT
+        )
+    `);
+
+    await query(`
+        CREATE INDEX IF NOT EXISTS idx_cron_run_log_job ON cron_run_log (job_name, started_at DESC)
+    `);
+}
+
 // ============================================================================
 // Core fetch logic
 // ============================================================================
@@ -159,6 +209,8 @@ export async function runLatestPapersFetch(): Promise<{ saved: number; total: nu
     let logId: string | null = null;
 
     try {
+        await ensureLatestPapersTables();
+
         // Record start
         const logResult = await query(
             `INSERT INTO cron_run_log (job_name, status) VALUES ('latest_papers_fetch', 'running') RETURNING id`,

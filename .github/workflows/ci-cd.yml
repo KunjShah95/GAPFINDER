@@ -165,7 +165,49 @@ jobs:
           VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-      - name: Deploy to Render/Railway/Heroku (Backend)
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Build and push backend Docker image
         run: |
-          echo "Deploy backend to your preferred platform"
-          # Add your backend deployment steps here
+          gcloud builds submit server/ \
+            --tag ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/gapminer-backend:${{ github.sha }}
+
+      - name: Deploy backend to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: gapminer-backend
+          region: ${{ vars.GCP_REGION || 'us-central1' }}
+          image: ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/gapminer-backend:${{ github.sha }}
+          env_vars: |
+            NODE_ENV=production
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_EXPIRES_IN=${{ vars.JWT_EXPIRES_IN || '24h' }}
+            REFRESH_TOKEN_EXPIRES_IN=${{ vars.REFRESH_TOKEN_EXPIRES_IN || '30d' }}
+            BCRYPT_ROUNDS=12
+            CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}
+            DEFAULT_AI_PROVIDER=${{ vars.DEFAULT_AI_PROVIDER || 'gemini' }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+            OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
+            FIRECRAWL_API_KEY=${{ secrets.FIRECRAWL_API_KEY }}
+            REDIS_URL=${{ secrets.REDIS_URL }}
+            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          timeout: 600
+          concurrency: 80
+          memory: 512Mi
+          cpu: 1
+
+      - name: Show deploy output URL
+        run: echo "Backend deployed to ${{ steps.deploy.outputs.url }}"

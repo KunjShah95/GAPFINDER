@@ -81,7 +81,7 @@ router.post('/tags', requireAuth, async (req: Request, res: Response): Promise<v
             `INSERT INTO tags (user_id, name, color)
              VALUES ($1, $2, $3)
              RETURNING *`,
-            [req.user!.userId, name, color || '#6366f1']
+            [req.user!.userId, name, color || '#f97316']
         );
 
         res.status(201).json(result.rows[0]);

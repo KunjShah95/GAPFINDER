@@ -148,12 +148,12 @@ export default function GapsPage() {
       className="space-y-8"
     >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Research Gaps</h1>
-          <p className="text-muted-foreground mt-1">Discover and prioritize research opportunities</p>
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Research Gaps</h1>
+          <p className="text-sm text-muted-foreground mt-1">Discover and prioritize research opportunities</p>
         </div>
-        <Button className="w-fit">
+        <Button className="w-full sm:w-auto">
           <Plus className="w-4 h-4 mr-2" />
           Propose New Gap
         </Button>
@@ -194,7 +194,7 @@ export default function GapsPage() {
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <input
@@ -205,11 +205,11 @@ export default function GapsPage() {
           />
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 flex-1 sm:flex-none">
             <Filter className="w-4 h-4" />
             Filters
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 flex-1 sm:flex-none">
             <Sparkles className="w-4 h-4 text-primary" />
             AI Sort
           </Button>
@@ -274,7 +274,7 @@ export default function GapsPage() {
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <button className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all">
+                <button className="p-2 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all">
                   <ArrowUpRight className="w-5 h-5" />
                 </button>
                 <button
