@@ -44,3 +44,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 .blackboxcli/
+.agents/
+.impeccable/
+.planning/
+docs/
