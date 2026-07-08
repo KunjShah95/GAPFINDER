@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: gapminer-postgres
+    environment:
+      POSTGRES_DB: gapminer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - gapminer_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gapminer"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: gapminer-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: gapminer-api
+    env_file:
+      - ./server/.env
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/gapminer
+      REDIS_URL: redis://redis:6379
+      RUN_LATEST_PAPERS_CRON: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+
+  worker:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: gapminer-worker
+    command: ["node", "dist/worker.js"]
+    env_file:
+      - ./server/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/gapminer
+      REDIS_URL: redis://redis:6379
+      RUN_LATEST_PAPERS_CRON: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  gapminer_pgdata:
