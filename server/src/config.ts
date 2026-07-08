@@ -63,6 +63,8 @@ export const config = {
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
     refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '30d',
     bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
+    googleClientId: requireEnv('GOOGLE_CLIENT_ID'),
+    googleClientSecret: requireEnv('GOOGLE_CLIENT_SECRET'),
 
     // API Keys (kept on server only — never exposed to frontend)
     geminiApiKey: requireEnv('GEMINI_API_KEY'),

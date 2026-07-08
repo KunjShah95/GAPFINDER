@@ -195,6 +195,15 @@ export const authApi = {
         return data.user;
     },
 
+    async loginWithGoogle(credential: string) {
+        const data = await apiRequest<{ user: UserProfile; accessToken: string; refreshToken: string; isNewUser: boolean }>(
+            '/auth/google',
+            { method: 'POST', body: { credential }, skipAuth: true }
+        );
+        setTokens(data.accessToken, data.refreshToken);
+        return data;
+    },
+
     async getProfile() {
         return apiRequest<UserProfile>('/auth/me');
     },
@@ -203,9 +212,40 @@ export const authApi = {
         return apiRequest('/auth/profile', { method: 'PATCH', body: updates });
     },
 
-    logout() {
-        clearTokens();
+    async forgotPassword(email: string) {
+        return apiRequest('/auth/forgot-password', { method: 'POST', body: { email }, skipAuth: true });
     },
+
+    async resetPassword(token: string, newPassword: string) {
+        return apiRequest('/auth/reset-password', { method: 'POST', body: { token, newPassword }, skipAuth: true });
+    },
+
+    async sendVerification() {
+        return apiRequest('/auth/send-verification', { method: 'POST' });
+    },
+
+    async logout() {
+        try {
+            const refreshToken = localStorage.getItem('gapminer_refresh_token');
+            await apiRequest('/auth/logout', { method: 'POST', body: { refreshToken } });
+        } finally {
+            clearTokens();
+        }
+    },
+
+    async logoutAll() {
+        try {
+            await apiRequest('/auth/logout-all', { method: 'POST' });
+        } finally {
+            clearTokens();
+        }
+    },
+
+    async getSessions() {
+        return apiRequest<{ sessions: Array<{ id: string; user_agent: string; ip_address: string; created_at: string; expires_at: string }> }>('/auth/sessions');
+    },
+
+    clearTokens,
 };
 
 // ============================================================================

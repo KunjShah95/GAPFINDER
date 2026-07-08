@@ -9,6 +9,7 @@ interface User {
   role: string
   tier: string
   avatar?: string
+  isVerified?: boolean
   xp?: {
     totalXp: number
     level: number
@@ -25,13 +26,19 @@ interface AuthContextType {
   isLoading: boolean
   login: (email: string, password: string) => Promise<boolean>
   register: (name: string, email: string, password: string) => Promise<boolean>
-  logout: () => void
+  loginWithGoogle: (credential: string) => Promise<boolean>
+  logout: () => Promise<void>
+  logoutAll: () => Promise<void>
   updateProfile: (updates: { name?: string; avatar?: string }) => Promise<boolean>
+  forgotPassword: (email: string) => Promise<boolean>
+  resetPassword: (token: string, newPassword: string) => Promise<boolean>
+  sendVerification: () => Promise<boolean>
   showAuthModal: boolean
   setShowAuthModal: (show: boolean) => void
-  authModalMode: 'login' | 'register'
-  setAuthModalMode: (mode: 'login' | 'register') => void
-  loginWithGoogle: () => Promise<boolean>
+  authModalMode: 'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email'
+  setAuthModalMode: (mode: 'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email') => void
+  resetToken: string | null
+  setResetToken: (token: string | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -53,10 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showAuthModal, setShowAuthModal] = useState(false)
-  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login')
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password' | 'verify-email'>('login')
+  const [resetToken, setResetToken] = useState<string | null>(null)
 
   const loadUser = useCallback(async () => {
-    // Only try to load user if we have a token
     const token = getAccessToken()
     if (!token) {
       setIsLoading(false)
@@ -107,24 +114,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    authApi.logout()
-    setUser(null)
+  const loginWithGoogle = async (credential: string): Promise<boolean> => {
+    setIsLoading(true)
+    try {
+      const response = await authApi.loginWithGoogle(credential)
+      setUser(mapUserProfile(response.user))
+      setShowAuthModal(false)
+      return true
+    } catch (error) {
+      console.error('[Auth] Google login failed:', error)
+      return false
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const loginWithGoogle = async (): Promise<boolean> => {
-    // Google OAuth would be wired through the backend
-    // For now, show a message that it's coming soon
-    console.warn('[Auth] Google login not yet integrated with backend')
-    return false
+  const logout = async () => {
+    try {
+      await authApi.logout()
+    } finally {
+      authApi.clearTokens()
+      setUser(null)
+    }
+  }
+
+  const logoutAll = async () => {
+    try {
+      await authApi.logoutAll()
+    } finally {
+      authApi.clearTokens()
+      setUser(null)
+    }
   }
 
   const updateProfile = async (updates: { name?: string; avatar?: string }): Promise<boolean> => {
     try {
       await authApi.updateProfile(updates)
-      // Refresh user data
       const profile = await authApi.getProfile()
       setUser(mapUserProfile(profile))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const forgotPassword = async (email: string): Promise<boolean> => {
+    try {
+      await authApi.forgotPassword(email)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const resetPassword = async (token: string, newPassword: string): Promise<boolean> => {
+    try {
+      await authApi.resetPassword(token, newPassword)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const sendVerification = async (): Promise<boolean> => {
+    try {
+      await authApi.sendVerification()
       return true
     } catch {
       return false
@@ -139,13 +193,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         login,
         register,
+        loginWithGoogle,
         logout,
+        logoutAll,
         updateProfile,
+        forgotPassword,
+        resetPassword,
+        sendVerification,
         showAuthModal,
         setShowAuthModal,
         authModalMode,
         setAuthModalMode,
-        loginWithGoogle,
+        resetToken,
+        setResetToken,
       }}
     >
       {children}

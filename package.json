@@ -24,6 +24,7 @@
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@google/genai": "^1.34.0",
     "@mendable/firecrawl-js": "^4.9.3",
+    "@react-oauth/google": "^0.13.5",
     "@sentry/react": "^10.41.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.21",
